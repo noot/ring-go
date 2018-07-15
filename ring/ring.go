@@ -86,6 +86,7 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
 	sig.Y = image.Y
 
 	var Lx, Ly, Rx, Ry []*big.Int
+	var hash [32]byte
 	for i := 0; i < len(ring.Ring); i ++ {
 		pub_x := ring.Ring[i].X
 		pub_y := ring.Ring[i].Y
@@ -98,9 +99,38 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
 		Lx[i].Add(Lx[i], tmp)
 
 		// calculate Ly[i]
+                Ly[i].Mul(q_i, Gy)
+                tmp.Mul(w_i,pub_y)
+                Ly[i].Add(Ly[i], tmp)
+
 		// calculate Rx[i]
+		hash = sha256.Sum256(pub_x.Bytes())
+		var bytesHash *big.Int
+		bytesHash.SetBytes(hash[:])
+		Rx[i].Mul(q_i, bytesHash)
+		tmp.Mul(w_i, image.X)
+		Rx[i].Add(Rx[i], tmp)
+
 		// calculate Ry[i]
+                hash = sha256.Sum256(pub_y.Bytes())
+                bytesHash.SetBytes(hash[:])
+                Ry[i].Mul(q_i, bytesHash)
+                tmp.Mul(w_i, image.Y)
+                Ry[i].Add(Ry[i], tmp)
 	}
+
+	s := len(ring.Ring) + 1 // randomize this later
+        q_i, _ := rand.Int(*new(io.Reader), privkey.D)
+	Lx[s].Mul(q_i, Gx)
+	Ly[s].Mul(q_i, Gx)
+
+	var bytesHash *big.Int 
+        hash = sha256.Sum256(pubkey.X.Bytes())
+        bytesHash.SetBytes(hash[:])
+	Rx[s].Mul(q_i, bytesHash)
+        hash = sha256.Sum256(pubkey.Y.Bytes())
+        bytesHash.SetBytes(hash[:])
+        Ry[s].Mul(q_i, bytesHash)
 
 	return &sig, nil
 }
