@@ -140,11 +140,17 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
 	}
 
 	toHash := msg
+
 	for i := 0; i < len(ring.Ring) + 1; i ++ {
 		// create hash
-		toHash = append(toHash,Lx[i].Bytes())
+		toHash = append(toHash,Lx[i].Bytes()...)
+		toHash = append(toHash,Ly[i].Bytes()...)
 	}
-
+	for i := 0; i < len(ring.Ring) + 1; i ++ {
+		// create hash
+		toHash = append(toHash,Rx[i].Bytes()...)
+		toHash = append(toHash,Ry[i].Bytes()...)
+	}
 	return &sig, nil
 }
 
