@@ -15,7 +15,7 @@ func main() {
 
 	/* generate new private public keypair */
 	//privkey, err := ring.GenPrivkey()
-	privkey, pubkey := ring.GenKeysFromStr("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+	privkey, _ := ring.GenKeysFromStr("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 	/*if err != nil {
 		log.Fatal(err)
 	}*/
@@ -29,11 +29,22 @@ func main() {
 	msg := "helloworld"
 	msgHashArr := sha256.Sum256([]byte(msg))
 	msgHash := msgHashArr[:]
-	sig, err := privkey.Sign(msgHash)
+
+	keyring := ring.GenNewKeyRing()
+	//key1, _ := ring.GenPrivkey()
+	//pubkey1 := key1.PubKey()
+	//key2, _ := ring.GenPrivkey()
+	//pubkey2 := ring.GenPubkey(key2)
+
+	//keyring.Ring = append(keyring.Ring, pubkey1)
+
+	//sig, err := privkey.Sign(msgHash, keyring, privkey)
+	sig, err := ring.Sign(msgHash, keyring, privkey)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	verified := sig.Verify(msgHash, pubkey)
-	fmt.Printf("verified? %v\n", verified)
+	fmt.Println(sig)
+	//verified := sig.Verify(msgHash, pubkey)
+	//fmt.Printf("verified? %v\n", verified)
 }

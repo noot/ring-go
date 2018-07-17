@@ -12,12 +12,18 @@ import (
 )
 
 type PublicKeyRing struct {
-	Ring []btcec.PublicKey
+	Ring []*btcec.PublicKey
 }
 
 type RingSign struct {
-	X, Y *big.Int
-	C, T *big.Int
+	//X, Y *big.Int // parameters from key image.
+	C, T []*big.Int
+	I *btcec.PublicKey
+}
+
+func GenNewKeyRing() (*PublicKeyRing) {
+	var keyring *PublicKeyRing
+	return keyring
 }
 
 func GenKeysFromStr(str string) (*btcec.PrivateKey, *btcec.PublicKey) {
@@ -69,7 +75,7 @@ func GenKeyImage(privkey *btcec.PrivateKey) (*btcec.PublicKey) {
 // ring: array of PublicKeys to be included in the ring
 // privkey: PrivateKey of signer
 func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign, error) {
-	signature := sha256.Sum256(msg)
+	//signature := sha256.Sum256(msg)
 	Gx := btcec.S256().Gx
 	Gy := btcec.S256().Gy
 	var tmp *big.Int
@@ -82,11 +88,18 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
 	image := GenKeyImage(privkey)
 	pubkey := privkey.PubKey()
 	var sig RingSign
-	sig.X = image.X
-	sig.Y = image.Y
+	//sig.X = image.X
+	//sig.Y = image.Y
+	sig.I = image
+
+	// l is a large randomly generated prime.
+	var l *big.Int
 
 	var Lx, Ly, Rx, Ry []*big.Int
 	var hash [32]byte
+
+	fmt.Printf("privkey.D: ")
+	fmt.Println(privkey.D)
 
 	// insert signer's info at randomly generated index s
     _s, _ := rand.Int(*new(io.Reader), privkey.D) 
@@ -94,7 +107,7 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
     
 	for i := 0; i < len(ring.Ring) + 1; i ++ {
 		if i == int(s) {
-			s := len(ring.Ring) + 1 // randomize this later
+			//s := len(ring.Ring) + 1 // randomize this later
 		    q_i, _ := rand.Int(*new(io.Reader), privkey.D)
 			Lx[s].Mul(q_i, Gx)
 			Ly[s].Mul(q_i, Gx)
@@ -106,11 +119,17 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
 		    hash = sha256.Sum256(pubkey.Y.Bytes())
 		    bytesHash.SetBytes(hash[:])
 		    Ry[s].Mul(q_i, bytesHash)
+
+		    sig.T[i] = q_i
 		} else {
 			pub_x := ring.Ring[i].X
 			pub_y := ring.Ring[i].Y
 			q_i, _ := rand.Int(*new(io.Reader), privkey.D)
 			w_i, _ := rand.Int(*new(io.Reader), privkey.D)
+
+			// c_i = w_i and t_i = q_i
+			sig.C[i] = w_i
+			sig.T[i] = q_i
 
 			// calculate Lx[i]
 			Lx[i].Mul(q_i, Gx)
@@ -139,21 +158,45 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
     	}
 	}
 
-	toHash := msg
+	cHash := msg
 
 	for i := 0; i < len(ring.Ring) + 1; i ++ {
 		// create hash
-		toHash = append(toHash,Lx[i].Bytes()...)
-		toHash = append(toHash,Ly[i].Bytes()...)
+		cHash = append(cHash,Lx[i].Bytes()...)
+		cHash = append(cHash,Ly[i].Bytes()...)
 	}
 	for i := 0; i < len(ring.Ring) + 1; i ++ {
 		// create hash
-		toHash = append(toHash,Rx[i].Bytes()...)
-		toHash = append(toHash,Ry[i].Bytes()...)
+		cHash = append(cHash,Rx[i].Bytes()...)
+		cHash = append(cHash,Ry[i].Bytes()...)
 	}
+
+	// calculate c_s, t_s values
+	// c_s = c - (c_1 + ... + c _n) % l
+	// t_s = q_s - c_s * privkey.D % l
+
+	// sum all c[i]
+	var c_sum *big.Int
+	for i := 0; i < len(ring.Ring) + 1; i ++ {
+		if i != int(s) {
+			c_sum.Add(c_sum,sig.C[i])
+		}
+	}
+
+	// fix the modulo stuff here?
+	var challenge *big.Int
+	challenge.SetBytes(cHash)
+	sig.C[s] = challenge.Sub(challenge, c_sum.Mod(c_sum, l))
+	tmp.Mul(sig.C[s], privkey.D)
+	tmp.Mod(tmp, l)
+	sig.T[s].Sub(sig.T[s], tmp)
+
 	return &sig, nil
 }
 
-func Ver() { }
+func Ver() { 
+	//Gx := btcec.S256().Gx
+	//Gy := btcec.S256().Gy
+}
 
 func Link() { }
