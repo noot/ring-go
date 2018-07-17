@@ -30,8 +30,8 @@ func GenKeysFromStr(str string) (*btcec.PrivateKey, *btcec.PublicKey) {
 func GenPrivkey() (*btcec.PrivateKey, error) {
         privkey, err := btcec.NewPrivateKey(btcec.S256());
         if err != nil {
-                fmt.Println(err)
-                return nil, err
+            fmt.Println(err)
+            return nil, err
         }
 	return privkey, err
 }
@@ -49,8 +49,8 @@ func GenKeyImage(privkey *btcec.PrivateKey) (*btcec.PublicKey) {
 	image := privkey.PubKey()
 
 	// hash pubkey.X
-        hashX := sha256.Sum256(pubkey.X.Bytes())
-        image.X = new(big.Int).SetBytes( hashX[:] )
+    hashX := sha256.Sum256(pubkey.X.Bytes())
+    image.X = new(big.Int).SetBytes( hashX[:] )
 	// set image.X to hash of pubkey.X * privkey.D
 	image.X.Mul(image.X, privkey.D)
 
@@ -87,50 +87,63 @@ func Sign(msg []byte, ring *PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign
 
 	var Lx, Ly, Rx, Ry []*big.Int
 	var hash [32]byte
-	for i := 0; i < len(ring.Ring); i ++ {
-		pub_x := ring.Ring[i].X
-		pub_y := ring.Ring[i].Y
-		q_i, _ := rand.Int(*new(io.Reader), privkey.D)
-		w_i, _ := rand.Int(*new(io.Reader), privkey.D)
 
-		// calculate Lx[i]
-		Lx[i].Mul(q_i, Gx)
-		tmp.Mul(w_i,pub_x)
-		Lx[i].Add(Lx[i], tmp)
+	// insert signer's info at randomly generated index s
+    _s, _ := rand.Int(*new(io.Reader), privkey.D) 
+    s := _s.Int64() % int64(len(ring.Ring)) // some sketchy stuff with big.Ints
+    
+	for i := 0; i < len(ring.Ring) + 1; i ++ {
+		if i == int(s) {
+			s := len(ring.Ring) + 1 // randomize this later
+		    q_i, _ := rand.Int(*new(io.Reader), privkey.D)
+			Lx[s].Mul(q_i, Gx)
+			Ly[s].Mul(q_i, Gx)
 
-		// calculate Ly[i]
-                Ly[i].Mul(q_i, Gy)
-                tmp.Mul(w_i,pub_y)
-                Ly[i].Add(Ly[i], tmp)
+			var bytesHash *big.Int 
+		    hash = sha256.Sum256(pubkey.X.Bytes())
+		    bytesHash.SetBytes(hash[:])
+			Rx[s].Mul(q_i, bytesHash)
+		    hash = sha256.Sum256(pubkey.Y.Bytes())
+		    bytesHash.SetBytes(hash[:])
+		    Ry[s].Mul(q_i, bytesHash)
+		} else {
+			pub_x := ring.Ring[i].X
+			pub_y := ring.Ring[i].Y
+			q_i, _ := rand.Int(*new(io.Reader), privkey.D)
+			w_i, _ := rand.Int(*new(io.Reader), privkey.D)
 
-		// calculate Rx[i]
-		hash = sha256.Sum256(pub_x.Bytes())
-		var bytesHash *big.Int
-		bytesHash.SetBytes(hash[:])
-		Rx[i].Mul(q_i, bytesHash)
-		tmp.Mul(w_i, image.X)
-		Rx[i].Add(Rx[i], tmp)
+			// calculate Lx[i]
+			Lx[i].Mul(q_i, Gx)
+			tmp.Mul(w_i,pub_x)
+			Lx[i].Add(Lx[i], tmp)
 
-		// calculate Ry[i]
-                hash = sha256.Sum256(pub_y.Bytes())
-                bytesHash.SetBytes(hash[:])
-                Ry[i].Mul(q_i, bytesHash)
-                tmp.Mul(w_i, image.Y)
-                Ry[i].Add(Ry[i], tmp)
+			// calculate Ly[i]
+	        Ly[i].Mul(q_i, Gy)
+	        tmp.Mul(w_i,pub_y)
+	        Ly[i].Add(Ly[i], tmp)
+
+			// calculate Rx[i]
+			hash = sha256.Sum256(pub_x.Bytes())
+			var bytesHash *big.Int
+			bytesHash.SetBytes(hash[:])
+			Rx[i].Mul(q_i, bytesHash)
+			tmp.Mul(w_i, image.X)
+			Rx[i].Add(Rx[i], tmp)
+
+			// calculate Ry[i]
+	        hash = sha256.Sum256(pub_y.Bytes())
+	        bytesHash.SetBytes(hash[:])
+	        Ry[i].Mul(q_i, bytesHash)
+	        tmp.Mul(w_i, image.Y)
+	        Ry[i].Add(Ry[i], tmp)
+    	}
 	}
 
-	s := len(ring.Ring) + 1 // randomize this later
-        q_i, _ := rand.Int(*new(io.Reader), privkey.D)
-	Lx[s].Mul(q_i, Gx)
-	Ly[s].Mul(q_i, Gx)
-
-	var bytesHash *big.Int 
-        hash = sha256.Sum256(pubkey.X.Bytes())
-        bytesHash.SetBytes(hash[:])
-	Rx[s].Mul(q_i, bytesHash)
-        hash = sha256.Sum256(pubkey.Y.Bytes())
-        bytesHash.SetBytes(hash[:])
-        Ry[s].Mul(q_i, bytesHash)
+	toHash := msg
+	for i := 0; i < len(ring.Ring) + 1; i ++ {
+		// create hash
+		toHash = append(toHash,Lx[i].Bytes())
+	}
 
 	return &sig, nil
 }
