@@ -26,7 +26,7 @@ func main() {
 	msgHashArr := sha256.Sum256([]byte(msg))
 	msgHash := msgHashArr[:]
 
-	keyring := ring.GenNewKeyRing(1)
+	keyring := ring.GenNewKeyRing(2)
 	//key1, _ := ring.GenPrivkey()
 	//pubkey1 := key1.PubKey()
 	//key2, _ := ring.GenPrivkey()

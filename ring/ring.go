@@ -158,7 +158,7 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 
 		// calculate Rx[i]
 		hash = sha256.Sum256(pub_x.Bytes())
-		var bytesHash *big.Int
+		bytesHash := new(big.Int)
 		bytesHash.SetBytes(hash[:])
 		Rx[i].Mul(q_i, bytesHash)
 		tmp.Mul(w_i, image.X)
@@ -268,7 +268,7 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	c_sum := new(big.Int)
 	for i := 0; i < len(ring.Ring); i ++ {
 		if i != int(s) {
-			c_sum.Add(c_sum,sig.C[i])
+			c_sum.Add(c_sum,C[i])
 		}
 	}
 
