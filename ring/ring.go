@@ -2,7 +2,7 @@ package ring
 
 import (
 	"fmt"
-	"io"
+	//"io"
 	"github.com/btcsuite/btcec"
 	"encoding/hex"
 	"crypto/sha256"
@@ -21,11 +21,13 @@ type RingSign struct {
 	I *btcec.PublicKey
 }
 
-func GenNewKeyRing() (PublicKeyRing) {
+func GenNewKeyRing(size int) (PublicKeyRing) {
 	var ring []*btcec.PublicKey
-	tmpPriv, _ := GenPrivkey()
-	tmpPub := GenPubkey(tmpPriv)
-	ring = append(ring, tmpPub)
+	for i := 0; i < size; i++ {
+		tmpPriv, _ := GenPrivkey()
+		tmpPub := GenPubkey(tmpPriv)
+		ring = append(ring, tmpPub)
+	}
 	var keyring PublicKeyRing
 	keyring.Ring = ring
 	return keyring
@@ -97,12 +99,10 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	image := GenKeyImage(privkey)
 	pubkey := privkey.PubKey()
 	sig := new(RingSign)
-	//sig.X = image.X
-	//sig.Y = image.Y
 	sig.I = image
 
 	// l is a large randomly generated prime.
-	var l *big.Int
+	l, _ := rand.Prime(rand.Reader, 1024)
 
 	arrayLen := len(ring.Ring) + 1
 	//var Lx, Ly, Rx, Ry []*big.Int
@@ -113,78 +113,138 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 
 	var hash [32]byte
 
-	fmt.Printf("privkey.D: ")
-	fmt.Println(privkey.D)
-
 	// insert signer's info at randomly generated index s
-    //_s, _ := rand.Int(*new(io.Reader), privkey.D) 
     b := make([]byte, 16)
-    n, err := rand.Read(b) // this doesn't seem to be random..
+    n, err := rand.Read(b) // this doesn't seem to be random.. fix this
     if err != nil { log.Fatal(err) }
-    fmt.Println(n)
+    //fmt.Println(n)
     s := n % len(ring.Ring)
-    //fmt.Println("s: ", s)
-    
-	for i := 0; i < len(ring.Ring); i ++ {
+   
+   	// sig return values
+    C := make([]*big.Int, arrayLen)
+ 	T := make([]*big.Int, arrayLen)
+
+    // i < s
+	for i := 0; i < s; i ++ {
+		fmt.Println("i == s?")
+		fmt.Println(i == s)
+
+	 	C[i] = new(big.Int)
+	 	T[i] = new(big.Int)
+
 		Lx[i] = new(big.Int)
  		Ly[i] = new(big.Int)
  		Rx[i] = new(big.Int)
  		Ry[i] = new(big.Int)
-		if i == int(s) {
-			//s := len(ring.Ring) + 1 // randomize this later
-		    //q_i, _ := rand.Int(*new(io.Reader), privkey.D)
-		    b = make([]byte, 16)
-		    q, _ := rand.Read(b)
-		    q_i := big.NewInt(int64(q))
- 
- 		    Lx[s].Mul(q_i, Gx)
-			Ly[s].Mul(q_i, Gy)
 
-			bytesHash := new(big.Int)
-		    hash = sha256.Sum256(pubkey.X.Bytes())
-		    bytesHash.SetBytes(hash[:])
-			Rx[s].Mul(q_i, bytesHash)
-		    hash = sha256.Sum256(pubkey.Y.Bytes())
-		    bytesHash.SetBytes(hash[:])
-		    Ry[s].Mul(q_i, bytesHash)
+		pub_x := ring.Ring[i].X
+		pub_y := ring.Ring[i].Y
 
-		    sig.T = make([]*big.Int, arrayLen)
-		    sig.T[s] = q_i
-		} else {
-			pub_x := ring.Ring[i].X
-			pub_y := ring.Ring[i].Y
-			q_i, _ := rand.Int(*new(io.Reader), privkey.D)
-			w_i, _ := rand.Int(*new(io.Reader), privkey.D)
+		q_i, _ := rand.Prime(rand.Reader, 1024)
+		w_i, _ := rand.Prime(rand.Reader, 1024)
 
-			// c_i = w_i and t_i = q_i
-			sig.C[i] = w_i
-			sig.T[i] = q_i
+		C[i] = w_i
+		T[i] = q_i
 
-			// calculate Lx[i]
-			Lx[i].Mul(q_i, Gx)
-			tmp.Mul(w_i,pub_x)
-			Lx[i].Add(Lx[i], tmp)
+		// calculate Lx[i]
+		Lx[i].Mul(q_i, Gx)
+		tmp.Mul(w_i,pub_x)
+		Lx[i].Add(Lx[i], tmp)
 
-			// calculate Ly[i]
-	        Ly[i].Mul(q_i, Gy)
-	        tmp.Mul(w_i,pub_y)
-	        Ly[i].Add(Ly[i], tmp)
+		// calculate Ly[i]
+        Ly[i].Mul(q_i, Gy)
+        tmp.Mul(w_i,pub_y)
+        Ly[i].Add(Ly[i], tmp)
 
-			// calculate Rx[i]
-			hash = sha256.Sum256(pub_x.Bytes())
-			var bytesHash *big.Int
-			bytesHash.SetBytes(hash[:])
-			Rx[i].Mul(q_i, bytesHash)
-			tmp.Mul(w_i, image.X)
-			Rx[i].Add(Rx[i], tmp)
+		// calculate Rx[i]
+		hash = sha256.Sum256(pub_x.Bytes())
+		var bytesHash *big.Int
+		bytesHash.SetBytes(hash[:])
+		Rx[i].Mul(q_i, bytesHash)
+		tmp.Mul(w_i, image.X)
+		Rx[i].Add(Rx[i], tmp)
 
-			// calculate Ry[i]
-	        hash = sha256.Sum256(pub_y.Bytes())
-	        bytesHash.SetBytes(hash[:])
-	        Ry[i].Mul(q_i, bytesHash)
-	        tmp.Mul(w_i, image.Y)
-	        Ry[i].Add(Ry[i], tmp)
-    	}
+		// calculate Ry[i]
+        hash = sha256.Sum256(pub_y.Bytes())
+        bytesHash.SetBytes(hash[:])
+        Ry[i].Mul(q_i, bytesHash)
+        tmp.Mul(w_i, image.Y)
+        Ry[i].Add(Ry[i], tmp)
+	}
+
+	// i == s
+	i := s
+	// fmt.Println("i == s?")
+	// fmt.Println(i == s)
+	Lx[i] = new(big.Int)
+	Ly[i] = new(big.Int)
+	Rx[i] = new(big.Int)
+	Ry[i] = new(big.Int)
+
+    b = make([]byte, 16)
+    q, _ := rand.Read(b)
+    q_i := big.NewInt(int64(q))
+
+	Lx[s].Mul(q_i, Gx)
+	Ly[s].Mul(q_i, Gy)
+
+	bytesHash := new(big.Int)
+    hash = sha256.Sum256(pubkey.X.Bytes())
+    bytesHash.SetBytes(hash[:])
+	Rx[s].Mul(q_i, bytesHash)
+    hash = sha256.Sum256(pubkey.Y.Bytes())
+    bytesHash.SetBytes(hash[:])
+    Ry[s].Mul(q_i, bytesHash)
+
+    sig.T = make([]*big.Int, arrayLen)
+    sig.T[s] = q_i
+
+	// i > s
+	for i := s + 1; i < arrayLen; i ++ {
+		// fmt.Println("i == s?")
+		// fmt.Println(i == s)
+
+		C[i] = new(big.Int)
+	 	T[i] = new(big.Int)
+
+		Lx[i] = new(big.Int)
+ 		Ly[i] = new(big.Int)
+ 		Rx[i] = new(big.Int)
+ 		Ry[i] = new(big.Int)
+
+		pub_x := ring.Ring[i-1].X
+		pub_y := ring.Ring[i-1].Y
+
+		q_i, _ := rand.Prime(rand.Reader, 1024)
+		w_i, _ := rand.Prime(rand.Reader, 1024)
+
+		C[i] = w_i
+		T[i] = q_i
+
+		// calculate Lx[i]
+		Lx[i].Mul(q_i, Gx)
+		tmp.Mul(w_i,pub_x)
+		Lx[i].Add(Lx[i], tmp)
+
+		// calculate Ly[i]
+        Ly[i].Mul(q_i, Gy)
+        tmp.Mul(w_i,pub_y)
+        Ly[i].Add(Ly[i], tmp)
+
+		// calculate Rx[i]
+		hash = sha256.Sum256(pub_x.Bytes())
+		bytesHash := new(big.Int)
+		bytesHash.SetBytes(hash[:])
+		Rx[i].Mul(q_i, bytesHash)
+		tmp.Mul(w_i, image.X)
+		Rx[i].Add(Rx[i], tmp)
+
+		// calculate Ry[i]
+        hash = sha256.Sum256(pub_y.Bytes())
+        bytesHash.SetBytes(hash[:])
+        Ry[i].Mul(q_i, bytesHash)
+        tmp.Mul(w_i, image.Y)
+        Ry[i].Add(Ry[i], tmp)
 	}
 
 	cHash := msg
@@ -212,16 +272,19 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 		}
 	}
 
-	// fix the modulo stuff here?
+ 	C[s] = new(big.Int)
+ 	T[s] = new(big.Int)
 	challenge := new(big.Int)
 	challenge.SetBytes(cHash)
 	c_mod := new(big.Int)
-	c_mod.Mod(c_sum, l)
-	sig.C[s] = challenge.Sub(challenge, c_mod)
-	tmp.Mul(sig.C[s], privkey.D)
+ 	c_mod.Mod(c_sum, l)
+	C[s].Sub(challenge, c_mod)
+	tmp.Mul(C[s], privkey.D)
 	tmp.Mod(tmp, l)
-	sig.T[s].Sub(sig.T[s], tmp)
+	T[s].Sub(T[s], tmp)
 
+	sig.C = C
+	sig.T = T
 	return sig, nil
 }
 
