@@ -126,7 +126,9 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	sig.I = image
 
 	// l is a large randomly generated prime.
-	l, _ := rand.Prime(rand.Reader, 1024)
+	//l, _ := rand.Prime(rand.Reader, 1024)
+	var l *big.Int
+	l = big.NewInt(1024)
 
 	//var Lx, Ly, Rx, Ry []*big.Int
 	Lx := make([]*big.Int, ringSize)
@@ -147,6 +149,8 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  	tmpY := new(big.Int)
 
  	var s int // secret index
+ 	var sum *big.Int
+ 	sum = big.NewInt(0) // sum of all c_i needed later
 
 	for i := 0; i < ringSize; i ++ {
 	 	C[i] = new(big.Int)
@@ -175,7 +179,7 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 			Lx[i], Ly[i] = curve.ScalarBaseMult(q_i.Bytes()) // q_i*G
 			Rx[i], Ry[i] = curve.ScalarMult(hash_x, hash_y, q_i.Bytes())
  		} else {
-			q_i, _ := rand.Prime(rand.Reader, 1024)
+			q_i, _ := rand.Prime(rand.Reader, 1024) // these actually can only be picked from (1... l).
 			w_i, _ := rand.Prime(rand.Reader, 1024)
 
 			C[i] = w_i
@@ -187,7 +191,9 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 
 			tmpX, tmpY = curve.ScalarMult(hash_x, hash_y, q_i.Bytes()) // q_i*sha256(P_i)
 			Rx[i], Ry[i] = curve.ScalarMult(image.X, image.Y, w_i.Bytes()) // w_i*I
-			Rx[i], Ry[i] = curve.Add(Rx[i], Ry[i], tmpX, tmpY) 			
+			Rx[i], Ry[i] = curve.Add(Rx[i], Ry[i], tmpX, tmpY) 	
+
+			sum.Add(sum, C[i])		
     	}
 	}
 
@@ -204,30 +210,13 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 		cHash = append(cHash,Ry[i].Bytes()...)
 	}
 
-	// calculate c_s, t_s values
-	// c_s = c - (c_1 + ... + c _n) % l
-	// t_s = q_s - c_s * privkey.D % l
-	// sum all c[i]
-	c_sum := new(big.Int)
-	for i := 0; i < ringSize; i ++ {
-		if i != s {
-			c_sum.Add(c_sum,C[i])
-		}
-	}
-
-    // randomizing s
-    // s_big := new(big.Int)
-    // len_big := new(big.Int)
-    // len_big.SetInt64(int64(len(ring.Ring)))
-    // s_big.Mod(n,len_big)
-    // s := int(s_big.Int64())
-
  	C[s] = new(big.Int)
  	T[s] = new(big.Int)
 	challenge := new(big.Int)
 	challenge.SetBytes(cHash)
+	fmt.Println("challenge: ", challenge)
 	c_mod := new(big.Int)
- 	c_mod.Mod(c_sum, l)
+ 	c_mod.Mod(sum, l)
 	C[s].Sub(challenge, c_mod)
 	tmp.Mul(C[s], privkey.D)
 	tmp.Mod(tmp, l)
