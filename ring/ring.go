@@ -28,6 +28,7 @@ type RingSign struct {
 	//X, Y *big.Int // parameters from key image.
 	C, T []*big.Int
 	I *btcec.PublicKey
+	Ring []*btcec.PublicKey
 }
 
 func GenNewKeyRing(size int, privkey *btcec.PrivateKey) (PublicKeyRing) {
@@ -40,7 +41,7 @@ func GenNewKeyRing(size int, privkey *btcec.PrivateKey) (PublicKeyRing) {
 	len := new(big.Int)
 	len.SetInt64(int64(size))
 	s.Mod(l, len)
-	fmt.Println(s)
+	//fmt.Println(s)
 
 	for i := 0; i < size; i++ {
 		if i == int(s.Int64()) {
@@ -123,6 +124,7 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	curve := pubkey.Curve
 	sig := new(RingSign)
 	sig.I = image
+	sig.Ring = ring.Ring
 
 	// l is the order of the base point 
 	l := curve.Params().N
@@ -144,6 +146,8 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  	var sum *big.Int
  	sum = big.NewInt(0) // sum of all c_i needed later
  	var q_s *big.Int
+
+	cHashStr := msg
 
 	for i := 0; i < ringSize; i ++ {
 	 	C[i] = new(big.Int)
@@ -190,20 +194,23 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 
 			sum.Add(sum, C[i])		
     	}
-	}
 
-	cHashStr := msg
-
-	for i := 0; i < ringSize; i ++ {
-		// create hash
-		cHashStr = append(cHashStr,Lx[i].Bytes()...)
+    	cHashStr = append(cHashStr,Lx[i].Bytes()...)
 		cHashStr = append(cHashStr,Ly[i].Bytes()...)
-	}
-	for i := 0; i < ringSize; i ++ {
-		// create hash
 		cHashStr = append(cHashStr,Rx[i].Bytes()...)
 		cHashStr = append(cHashStr,Ry[i].Bytes()...)
 	}
+
+	// for i := 0; i < ringSize; i ++ {
+	// 	// create hash
+	// 	cHashStr = append(cHashStr,Lx[i].Bytes()...)
+	// 	cHashStr = append(cHashStr,Ly[i].Bytes()...)
+	// }
+	// for i := 0; i < ringSize; i ++ {
+	// 	// create hash
+	// 	cHashStr = append(cHashStr,Rx[i].Bytes()...)
+	// 	cHashStr = append(cHashStr,Ry[i].Bytes()...)
+	// }
 
 	cHash := sha256.Sum256(cHashStr)
 
@@ -211,8 +218,8 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  	T[s] = new(big.Int)
 	challenge := new(big.Int)
 	challenge.SetBytes(cHash[:])
-	fmt.Println("challenge: ", challenge)
-	fmt.Println("c_sum: ", sum)
+	//fmt.Println("challenge: ", challenge)
+	//fmt.Println("c_sum: ", sum)
 
 	C[s].Sub(challenge, sum)
 	C[s].Mod(C[s], l)
@@ -227,15 +234,66 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	return sig, nil
 }
 
-func Ver() { 
-	//Gx := btcec.S256().Gx
-	//Gy := btcec.S256().Gy
+func Ver(msg []byte, sig *RingSign) (bool, error) { 
+	ringSize := len(sig.C)
 
 	// apply transformations:
 	// L_i' = t_i*G + c_i*P_i
-	// R_i' = t_i*sha1(P_i) + c_i*I
+	// R_i' = t_i*sha256(P_i)*G + c_i*I 
+	// multiply hash by generator to create hash from point on elliptic curve to another point on elliptic curve.
+	Lx := make([]*big.Int, ringSize)
+	Ly := make([]*big.Int, ringSize)
+	Rx := make([]*big.Int, ringSize)
+	Ry := make([]*big.Int, ringSize)
 
-	// check if sum(c_i) = 
+	curve := sig.I.Curve
+	l := curve.Params().N
+
+	tmpX := new(big.Int)
+	tmpY := new(big.Int)
+
+	sum := big.NewInt(int64(0))
+
+	hashStr := msg
+
+	for i := 0; i < ringSize; i ++ {
+		pub_x := sig.Ring[i].X
+		pub_y := sig.Ring[i].Y
+
+		bytes_hash_x := sha256.Sum256(pub_x.Bytes())
+		hash_x := new(big.Int)
+		hash_x.SetBytes(bytes_hash_x[:])
+		//hash_x = curve.ScalarBaseMult(hash_x.Bytes())
+
+		bytes_hash_y := sha256.Sum256(pub_y.Bytes())
+		hash_y := new(big.Int)
+		hash_y.SetBytes(bytes_hash_y[:])
+		//hash_y = curve.ScalarBaseMult(hash_y.Bytes())
+
+		Lx[i], Ly[i] = curve.ScalarBaseMult(sig.T[i].Bytes()) // t_i*G
+		tmpX, tmpY = curve.ScalarMult(pub_x, pub_y, sig.C[i].Bytes()) // c_i*P_i
+		Lx[i], Ly[i] = curve.Add(Lx[i], Ly[i], tmpX, tmpY)
+
+		Rx[i], Ry[i] = curve.ScalarMult(hash_x, hash_y, sig.T[i].Bytes()) // t_i*hash(P_i)
+		tmpX, tmpY = curve.ScalarMult(sig.I.X, sig.I.Y, sig.C[i].Bytes()) // c_i*I
+		Rx[i], Ry[i] = curve.Add(Rx[i], Ry[i], tmpX, tmpY)
+
+		sum.Add(sum, sig.C[i])
+
+		hashStr = append(hashStr, Lx[i].Bytes()...)
+		hashStr = append(hashStr, Ly[i].Bytes()...)
+		hashStr = append(hashStr, Rx[i].Bytes()...)
+		hashStr = append(hashStr, Ry[i].Bytes()...)
+	}
+
+	// check if sum(c_i) = sha256(m, L_0',...L_n',R_0',...R_n') mod l
+	hash := sha256.Sum256(hashStr)
+	hashInt := new(big.Int)
+	hashInt.SetBytes(hash[:])
+	hashInt.Mod(hashInt, l)
+
+	eq := sum.Cmp(hashInt)
+	return eq == 0, nil;
 }
 
 func Link() { }

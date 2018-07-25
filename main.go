@@ -38,6 +38,11 @@ func main() {
 	fmt.Println(sig.T)
 	fmt.Println(sig.I)
 
+	/* verify signature */
+	ver, err := ring.Ver(msgHash, sig)
+	if err != nil { log.Fatal(err) }
+	fmt.Println("verified? ", ver)
+
 	//verified := sig.Verify(msgHash, pubkey)
 	//fmt.Printf("verified? %v\n", verified)
 }
