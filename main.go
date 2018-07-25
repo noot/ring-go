@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"crypto/sha256"
-	//"github.com/btcsuite/btcec"
 	"github.com/noot/ring-go/ring"
 	//"encoding/hex"
 )
@@ -26,15 +25,9 @@ func main() {
 	msgHashArr := sha256.Sum256([]byte(msg))
 	msgHash := msgHashArr[:]
 
+	/* generate keyring */
 	keyring := ring.GenNewKeyRing(5, privkey)
-	//key1, _ := ring.GenPrivkey()
-	//pubkey1 := key1.PubKey()
-	//key2, _ := ring.GenPrivkey()
-	//pubkey2 := ring.GenPubkey(key2)
 
-	//keyring.Ring = append(keyring.Ring, pubkey1)
-
-	//sig, err := privkey.Sign(msgHash, keyring, privkey)
 	sig, err := ring.Sign(msgHash, keyring, privkey)
 	if err != nil {
 		log.Fatal(err)

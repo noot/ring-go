@@ -35,7 +35,7 @@ func GenNewKeyRing(size int, privkey *btcec.PrivateKey) (PublicKeyRing) {
 
 	pubkey := privkey.PubKey()
 
-	l, _ := rand.Prime(rand.Reader, 1024)
+	l, _ := rand.Int(rand.Reader, size - 1)
 	s := new(big.Int)
 	len := new(big.Int)
 	len.SetInt64(int64(size))
@@ -110,8 +110,7 @@ func typeof(v interface{}) string {
 // privkey: PrivateKey of signer
 func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign, error) {
 	tmp := new(big.Int)
-
-    ringSize := len(ring.Ring)
+	ringSize := len(ring.Ring)
 
 	// wish to create challenge c = hash(m,L_1,..,L_n,R_1,..,R_n)
 	// with L_i =  i = s ? q_i*G : q_i*G + w_i*P_i
@@ -134,8 +133,8 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	Rx := make([]*big.Int, ringSize)
 	Ry := make([]*big.Int, ringSize)
 
-   	// sig return values
-    C := make([]*big.Int, ringSize)
+   	// sig return value
+   	C := make([]*big.Int, ringSize)
  	T := make([]*big.Int, ringSize)
 
  	tmpX := new(big.Int)
@@ -168,7 +167,7 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 
  		if(ring.Ring[i] == pubkey) {
  			s = i
-			q_i, _ := rand.Prime(rand.Reader, 1024)
+			q_i, _ := rand.Int(rand.Reader, l)
 			q_i.Mod(q_i, l)
 
 			Lx[i], Ly[i] = curve.ScalarBaseMult(q_i.Bytes()) // q_i*G
@@ -176,8 +175,8 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 
 			q_s = q_i
  		} else {
-			q_i, _ := rand.Prime(rand.Reader, 1024) // these actually can only be picked from (1... l).
-			w_i, _ := rand.Prime(rand.Reader, 1024)
+			q_i, _ := rand.Int(rand.Reader, l) // these actually can only be picked from (1... l).
+			w_i, _ := rand.Int(rand.Reader, l)
 			q_i.Mod(q_i, l)
 			w_i.Mod(q_i, l)
 
