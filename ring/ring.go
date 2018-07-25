@@ -125,21 +125,14 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	sig := new(RingSign)
 	sig.I = image
 
-	// l is a large randomly generated prime.
-	//l, _ := rand.Prime(rand.Reader, 1024)
-	var l *big.Int
-	l = big.NewInt(1024)
+	// l is the order of the base point 
+	l := curve.Params().N
 
 	//var Lx, Ly, Rx, Ry []*big.Int
 	Lx := make([]*big.Int, ringSize)
 	Ly := make([]*big.Int, ringSize)
 	Rx := make([]*big.Int, ringSize)
 	Ry := make([]*big.Int, ringSize)
-
-	// insert signer's info at randomly generated index s
-	//n, err := rand.Prime(rand.Reader, 1024)
-    //if err != nil { log.Fatal(err) }
-    //fmt.Println(n)
 
    	// sig return values
     C := make([]*big.Int, ringSize)
@@ -176,6 +169,7 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  		if(ring.Ring[i] == pubkey) {
  			s = i
 			q_i, _ := rand.Prime(rand.Reader, 1024)
+			q_i.Mod(q_i, l)
 
 			Lx[i], Ly[i] = curve.ScalarBaseMult(q_i.Bytes()) // q_i*G
 			Rx[i], Ry[i] = curve.ScalarMult(hash_x, hash_y, q_i.Bytes())
@@ -184,6 +178,8 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  		} else {
 			q_i, _ := rand.Prime(rand.Reader, 1024) // these actually can only be picked from (1... l).
 			w_i, _ := rand.Prime(rand.Reader, 1024)
+			q_i.Mod(q_i, l)
+			w_i.Mod(q_i, l)
 
 			C[i] = w_i
 			T[i] = q_i
@@ -223,7 +219,6 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	fmt.Println("c_sum: ", sum)
 	c_mod := new(big.Int)
  	c_mod.Mod(sum, l)
- 	fmt.Println("c_mod: ", c_mod)
 	C[s].Sub(challenge, c_mod)
 	tmp.Mul(C[s], privkey.D)
 	tmp.Mod(tmp, l)
