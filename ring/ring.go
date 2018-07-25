@@ -151,6 +151,7 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  	var s int // secret index
  	var sum *big.Int
  	sum = big.NewInt(0) // sum of all c_i needed later
+ 	var q_s *big.Int
 
 	for i := 0; i < ringSize; i ++ {
 	 	C[i] = new(big.Int)
@@ -178,6 +179,8 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 
 			Lx[i], Ly[i] = curve.ScalarBaseMult(q_i.Bytes()) // q_i*G
 			Rx[i], Ry[i] = curve.ScalarMult(hash_x, hash_y, q_i.Bytes())
+
+			q_s = q_i
  		} else {
 			q_i, _ := rand.Prime(rand.Reader, 1024) // these actually can only be picked from (1... l).
 			w_i, _ := rand.Prime(rand.Reader, 1024)
@@ -197,30 +200,34 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
     	}
 	}
 
-	cHash := msg
+	cHashStr := msg
 
 	for i := 0; i < ringSize; i ++ {
 		// create hash
-		cHash = append(cHash,Lx[i].Bytes()...)
-		cHash = append(cHash,Ly[i].Bytes()...)
+		cHashStr = append(cHashStr,Lx[i].Bytes()...)
+		cHashStr = append(cHashStr,Ly[i].Bytes()...)
 	}
 	for i := 0; i < ringSize; i ++ {
 		// create hash
-		cHash = append(cHash,Rx[i].Bytes()...)
-		cHash = append(cHash,Ry[i].Bytes()...)
+		cHashStr = append(cHashStr,Rx[i].Bytes()...)
+		cHashStr = append(cHashStr,Ry[i].Bytes()...)
 	}
+
+	cHash := sha256.Sum256(cHashStr)
 
  	C[s] = new(big.Int)
  	T[s] = new(big.Int)
 	challenge := new(big.Int)
-	challenge.SetBytes(cHash)
+	challenge.SetBytes(cHash[:])
 	fmt.Println("challenge: ", challenge)
+	fmt.Println("c_sum: ", sum)
 	c_mod := new(big.Int)
  	c_mod.Mod(sum, l)
+ 	fmt.Println("c_mod: ", c_mod)
 	C[s].Sub(challenge, c_mod)
 	tmp.Mul(C[s], privkey.D)
 	tmp.Mod(tmp, l)
-	T[s].Sub(T[s], tmp)
+	T[s].Sub(q_s, tmp)
 
 	sig.C = C
 	sig.T = T
