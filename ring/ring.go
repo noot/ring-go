@@ -35,7 +35,7 @@ func GenNewKeyRing(size int, privkey *btcec.PrivateKey) (PublicKeyRing) {
 
 	pubkey := privkey.PubKey()
 
-	l, _ := rand.Int(rand.Reader, size - 1)
+	l, _ := rand.Int(rand.Reader, big.NewInt(int64(size)))
 	s := new(big.Int)
 	len := new(big.Int)
 	len.SetInt64(int64(size))
@@ -168,7 +168,6 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  		if(ring.Ring[i] == pubkey) {
  			s = i
 			q_i, _ := rand.Int(rand.Reader, l)
-			q_i.Mod(q_i, l)
 
 			Lx[i], Ly[i] = curve.ScalarBaseMult(q_i.Bytes()) // q_i*G
 			Rx[i], Ry[i] = curve.ScalarMult(hash_x, hash_y, q_i.Bytes())
@@ -177,8 +176,6 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
  		} else {
 			q_i, _ := rand.Int(rand.Reader, l) // these actually can only be picked from (1... l).
 			w_i, _ := rand.Int(rand.Reader, l)
-			q_i.Mod(q_i, l)
-			w_i.Mod(q_i, l)
 
 			C[i] = w_i
 			T[i] = q_i
@@ -216,12 +213,13 @@ func Sign(msg []byte, ring PublicKeyRing, privkey *btcec.PrivateKey) (*RingSign,
 	challenge.SetBytes(cHash[:])
 	fmt.Println("challenge: ", challenge)
 	fmt.Println("c_sum: ", sum)
-	c_mod := new(big.Int)
- 	c_mod.Mod(sum, l)
-	C[s].Sub(challenge, c_mod)
+
+	C[s].Sub(challenge, sum)
+	C[s].Mod(C[s], l)
+
 	tmp.Mul(C[s], privkey.D)
-	tmp.Mod(tmp, l)
 	T[s].Sub(q_s, tmp)
+	T[s].Mod(T[s], l)
 
 	sig.C = C
 	sig.T = T
