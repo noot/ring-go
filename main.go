@@ -30,7 +30,7 @@ func main() {
 	/* generate keyring */
 	keyring := ring.GenNewKeyRing(2, privkey)
 	fmt.Println(keyring)
-	
+
 	sig, err := ring.Sign(msgHash, keyring, privkey)
 	if err != nil {
 		log.Fatal(err)
@@ -41,10 +41,7 @@ func main() {
 	fmt.Println(sig.C)
 
 	// /* verify signature */
-	// ver, err := ring.Verify(msgHash, sig)
-	// if err != nil { log.Fatal(err) }
-	// fmt.Println("verified? ", ver)
-
-	//verified := sig.Verify(msgHash, pubkey)
-	//fmt.Printf("verified? %v\n", verified)
+	ver, err := ring.Verify(sig)
+	if err != nil { log.Fatal(err) }
+	fmt.Println("verified? ", ver)
 }
