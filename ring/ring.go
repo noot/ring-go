@@ -3,16 +3,13 @@ package ring
 import (
 	"fmt"
 	"errors"
-	//"io"
-	//"encoding/hex"
 	"math/big"
 	"crypto/rand"
 	"crypto/elliptic"
 	"crypto/ecdsa"
-	//"log"
 
  	"golang.org/x/crypto/sha3"
-	//"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type Ring []*ecdsa.PublicKey
@@ -25,12 +22,11 @@ type RingSign struct {
 	Curve elliptic.Curve
 }
 
-/* helpers */
 func typeof(v interface{}) string {
    return fmt.Sprintf("%T", v)
 }
 
-// Bytes returns the public key ring as a byte slice.
+// bytes returns the public key ring as a byte slice.
 func (r Ring) Bytes() (b []byte) {
 	for _, pub := range r {
 		b = append(b, pub.X.Bytes()...)
@@ -46,7 +42,8 @@ func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey) ([]*ecdsa.PublicKey) {
 	ring[0] = pubkey
 
 	for i := 1; i < size; i++ {
-		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		//priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		priv, err := crypto.GenerateKey()
 		if err != nil {
 			return nil
 		}
@@ -67,7 +64,7 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	// check ringsize > 1
 	ringsize := len(ring)
 	if ringsize < 2 {
-		return nil, errors.New("length of ring less than two")
+		return nil, errors.New("size of ring less than two")
 	}
 
 	// setup
@@ -94,9 +91,9 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	}
 
 	// compute u*G
-	gx, gy := curve.ScalarBaseMult(u.Bytes())
+	ux, uy := curve.ScalarBaseMult(u.Bytes())
 	// concatenate m and u*G and calculate sha3 hash
-	C_i := sha3.Sum256(append(m, append(gx.Bytes(), gy.Bytes()...)...))
+	C_i := sha3.Sum256(append(m, append(ux.Bytes(), uy.Bytes()...)...))
 	C[1] = new(big.Int).SetBytes(C_i[:])
 
 	// pick random scalar s
@@ -106,19 +103,26 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 		return nil, err
 	}
 
-	// calculate c[0] = H(m + s[n-1]*G + c[n-1]*P[n-1]) where n = ringsize
+	// calculate c[0] = H(m, s[n-1]*G + c[n-1]*P[n-1]) where n = ringsize
 	px, py := curve.ScalarMult(ring[1].X, ring[1].Y, s.Bytes())
-	gx, gy = curve.ScalarBaseMult(S[1].Bytes())
+	gx, gy := curve.ScalarBaseMult(S[1].Bytes())
 	cP := append(px.Bytes(), py.Bytes()...)
 	sG := append(gx.Bytes(), gy.Bytes()...)
 	C_i = sha3.Sum256(append(m, append(sG, cP...)...))
 	C[0] = new(big.Int).SetBytes(C_i[:])
 
-	// close ring by finding s[0] = u - c[0]*k[0] where P[0] = k[0]*G
-	S[0] = new(big.Int).Sub(u, new(big.Int).Mul(C[0], privkey.D))
+	// close ring by finding s[0] = ( u - c[0]*k[0] ) mod N where P[0] = k[0]*G and N is the order of the curve
+	S[0] = new(big.Int).Mod( new(big.Int).Sub(u, new(big.Int).Mul(C[0], privkey.D)), curve.Params().N )
 
 	sig.S = S
 	sig.C = C[0]
+
+	// check that u*G = s[0]*G + c[0]*P[0]
+	// gx, gy = curve.ScalarBaseMult(S[0].Bytes())
+	// cx, cy := curve.ScalarMult(ring[0].X, ring[0].Y, C[0].Bytes())
+	// if ux != new(big.Int).Add(gx, cx) || uy != new(big.Int).Add(gy, cy) {
+	// 	return nil, errors.New("error closing ring")
+	// }
 
 	return sig, nil
 }
@@ -129,7 +133,7 @@ func Verify(sig *RingSign) (bool, error) {
 	ringsize := len(ring)
 	S := sig.S
 	C := make([]*big.Int, ringsize)
-	curve := ring[0].Curve
+	curve := ring[1].Curve
 
 	// calculate c[1]
 	px, py := curve.ScalarMult(ring[0].X, ring[0].Y, sig.C.Bytes())

@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"crypto/sha256"
 	"github.com/noot/ring-go/ring"
-	//"encoding/hex"
+
+ 	"golang.org/x/crypto/sha3"
 
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -15,22 +15,17 @@ func main() {
 	fmt.Println("starting generation of keys...")
 
 	/* generate new private public keypair */
-	//privkey, err := ring.GenPrivkey()
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	/* generate public key image */
-	//image := ring.GenKeyImage(privkey)
-	//fmt.Println(image)
 
 	/* sign message */
 	msg := "helloworld"
-	msgHashArr := sha256.Sum256([]byte(msg))
+	msgHashArr := sha3.Sum256([]byte(msg))
 	msgHash := msgHashArr[:]
 
 	/* generate keyring */
 	keyring := ring.GenNewKeyRing(2, privkey)
-	fmt.Println(keyring)
 
+	/* sign */
 	sig, err := ring.Sign(msgHash, keyring, privkey)
 	if err != nil {
 		log.Fatal(err)
@@ -40,7 +35,7 @@ func main() {
 	fmt.Println(sig.S)
 	fmt.Println(sig.C)
 
-	// /* verify signature */
+	/* verify signature */
 	ver, err := ring.Verify(sig)
 	if err != nil { log.Fatal(err) }
 	fmt.Println("verified? ", ver)
