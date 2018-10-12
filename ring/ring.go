@@ -37,6 +37,8 @@ func (r Ring) Bytes() (b []byte) {
 	return
 }
 
+// creates a ring with size specified by `size` and places the public key corresponding to `privkey` in index 0 of the ring
+// returns a new key ring of type []*ecdsa.PublicKey
 func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey) ([]*ecdsa.PublicKey) {
 	//ring := new(Ring)
 	ring := make([]*ecdsa.PublicKey, size)
@@ -87,7 +89,6 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	S := make([]*big.Int, ringsize)
 
 	// pick random scalar u
-	//u, err := rand.Int(rand.Reader, new(big.Int).SetInt64(2 ^ 256) )
 	u, err := rand.Int(rand.Reader, curve.Params().P)	
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 
 	// compute u*G
 	ux, uy := curve.ScalarBaseMult(u.Bytes())
-	// concatenate m and u*G and calculate sha3 hash
+	// concatenate m and u*G and calculate c[1] = H(m, u*G)
 	C_i := sha3.Sum256(append(m, append(ux.Bytes(), uy.Bytes()...)...))
 	C[1] = new(big.Int).SetBytes(C_i[:])
 
@@ -114,31 +115,24 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	C[0] = new(big.Int).SetBytes(C_i[:])
 
 	// close ring by finding s[0] = ( u - c[0]*k[0] ) mod P where P[0] = k[0]*G and P is the order of the curve
-	//S[0] = new(big.Int).Mod( new(big.Int).Sub(u, new(big.Int).Mul(C[0], privkey.D)), curve.Params().P )
 	S[0] = new(big.Int).Sub(u, new(big.Int).Mod(new(big.Int).Mul(C[0], privkey.D), curve.Params().N))
 
-	sig.S = S
-	sig.C = C[0]
-
 	// check that u*G = s[0]*G + c[0]*P[0]
-	// check that H(m, s[0]*G + c[0]*P[0]) == H(m, u*G) == C[1]
 	sx, sy = curve.ScalarBaseMult(S[0].Bytes())
 	px, py = curve.ScalarMult(ring[0].X, ring[0].Y, C[0].Bytes())
-	tx, ty = curve.Add(sx, sy, px, py) // temp values
-	//C_i := sha3.Sum256(append(m, append(tx.Bytes(), ty.Bytes()...)...))
+	tx, ty = curve.Add(sx, sy, px, py) 
 
-	fmt.Println(tx, ty)
-	fmt.Println(ux, uy)
+	// check that H(m, s[0]*G + c[0]*P[0]) == H(m, u*G) == C[1]
+	C_i = sha3.Sum256(append(m, append(tx.Bytes(), ty.Bytes()...)...))
+	C_big := new(big.Int).SetBytes(C_i[:])
 
-	if !bytes.Equal(tx.Bytes(), ux.Bytes()) || !bytes.Equal(ty.Bytes(), uy.Bytes()) {
+	if !bytes.Equal(tx.Bytes(), ux.Bytes()) || !bytes.Equal(ty.Bytes(), uy.Bytes()) || !bytes.Equal(C[1].Bytes(), C_big.Bytes()) {
 			return nil, errors.New("error closing ring")
 	}
 
-	// if new(big.Int).SetBytes(C_0[:]).Cmp(C[1]) != 0 {
-	// 	// fmt.Println(C[1])
-	// 	// fmt.Println(new(big.Int).SetBytes(C_0[:]))
-	// 	return nil, errors.New("error closing ring")
-	// }
+	// everything ok, add values to signature
+	sig.S = S
+	sig.C = C[0]
 
 	return sig, nil
 }
