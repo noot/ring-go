@@ -3,6 +3,7 @@ package test
 import (
 	"testing"
 
+	"math/big"
 	"crypto/rand"
  	"golang.org/x/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -92,6 +93,19 @@ func TestVerifyFalse(t *testing.T) {
 	sig := createSig(5)
 	curve := sig.Ring[0].Curve
 	sig.C, _ = rand.Int(rand.Reader, curve.Params().P)	
+	/* verify signature */
+	ver, err := ring.Verify(sig)
+	if err != nil { 
+		t.Error("verification error")
+	} else if ver {
+		t.Error("verified? true")
+	}
+}
+
+func TestVerifyWrongMessage(t *testing.T) {
+	sig := createSig(5)
+	m, _ := rand.Int(rand.Reader, new(big.Int).SetInt64(2^64))
+	sig.M = m.Bytes()
 	/* verify signature */
 	ver, err := ring.Verify(sig)
 	if err != nil { 
