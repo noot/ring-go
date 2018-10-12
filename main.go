@@ -23,7 +23,7 @@ func main() {
 	msgHash := msgHashArr[:]
 
 	/* generate keyring */
-	keyring := ring.GenNewKeyRing(2, privkey)
+	keyring := ring.GenNewKeyRing(3, privkey)
 
 	/* sign */
 	sig, err := ring.Sign(msgHash, keyring, privkey)

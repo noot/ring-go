@@ -79,6 +79,7 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	sig.Ring = ring
 	sig.Curve = curve
 
+	// todo: randomize index of signer
 	if ring[0] != pubkey {
 		return nil, errors.New("first index in ring is not signer")
 	}
@@ -100,27 +101,34 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	C_i := sha3.Sum256(append(m, append(ux.Bytes(), uy.Bytes()...)...))
 	C[1] = new(big.Int).SetBytes(C_i[:])
 
-	// pick random scalar s
-	s, err := rand.Int(rand.Reader, curve.Params().P)
-	S[1] = s
-	if err != nil {
-		return nil, err
-	}
+	for i := 1; i < ringsize; i++ {
+		// pick random scalar s
+		s, err := rand.Int(rand.Reader, curve.Params().P)
+		S[i] = s
+		if err != nil {
+			return nil, err
+		}	
 
-	// calculate c[0] = H(m, s[n-1]*G + c[n-1]*P[n-1]) where n = ringsize
-	px, py := curve.ScalarMult(ring[1].X, ring[1].Y, C[1].Bytes()) // px, py = c[n-1]*P[n-1]
-	sx, sy := curve.ScalarBaseMult(S[1].Bytes())	// sx, sy = s[n-1]*G
-	tx, ty := curve.Add(sx, sy, px, py) // temp values
-	C_i = sha3.Sum256(append(m, append(tx.Bytes(), ty.Bytes()...)...))
-	C[0] = new(big.Int).SetBytes(C_i[:])
+		// calculate c[0] = H(m, s[n-1]*G + c[n-1]*P[n-1]) where n = ringsize
+		px, py := curve.ScalarMult(ring[i].X, ring[i].Y, C[i].Bytes()) // px, py = c[n-1]*P[n-1]
+		sx, sy := curve.ScalarBaseMult(S[i].Bytes())	// sx, sy = s[n-1]*G
+		tx, ty := curve.Add(sx, sy, px, py) // temp values
+		C_i = sha3.Sum256(append(m, append(tx.Bytes(), ty.Bytes()...)...))
+
+		if i == ringsize - 1 {
+			C[0] = new(big.Int).SetBytes(C_i[:])
+		} else {
+			C[i+1] = new(big.Int).SetBytes(C_i[:])
+		}
+	}
 
 	// close ring by finding s[0] = ( u - c[0]*k[0] ) mod P where P[0] = k[0]*G and P is the order of the curve
 	S[0] = new(big.Int).Sub(u, new(big.Int).Mod(new(big.Int).Mul(C[0], privkey.D), curve.Params().N))
 
 	// check that u*G = s[0]*G + c[0]*P[0]
-	sx, sy = curve.ScalarBaseMult(S[0].Bytes())
-	px, py = curve.ScalarMult(ring[0].X, ring[0].Y, C[0].Bytes())
-	tx, ty = curve.Add(sx, sy, px, py) 
+	sx, sy := curve.ScalarBaseMult(S[0].Bytes())
+	px, py := curve.ScalarMult(ring[0].X, ring[0].Y, C[0].Bytes())
+	tx, ty := curve.Add(sx, sy, px, py) 
 
 	// check that H(m, s[0]*G + c[0]*P[0]) == H(m, u*G) == C[1]
 	C_i = sha3.Sum256(append(m, append(tx.Bytes(), ty.Bytes()...)...))
@@ -146,18 +154,24 @@ func Verify(sig *RingSign) (bool, error) {
 	curve := ring[0].Curve
 
 	// calculate c[1] = H(m, s[0]*G + c[0]*P[0])
-	px, py := curve.ScalarMult(ring[0].X, ring[0].Y, sig.C.Bytes())
-	sx, sy := curve.ScalarBaseMult(S[0].Bytes())
-	tx, ty := curve.Add(sx, sy, px, py)	
-	C_i := sha3.Sum256(append(sig.M, append(tx.Bytes(), ty.Bytes()...)...))
-	C[1] = new(big.Int).SetBytes(C_i[:])
+	for i := 1; i < ringsize; i++ {
+		px, py := curve.ScalarMult(ring[i-1].X, ring[i-1].Y, sig.C.Bytes())
+		sx, sy := curve.ScalarBaseMult(S[i-1].Bytes())
+		tx, ty := curve.Add(sx, sy, px, py)	
+		C_i := sha3.Sum256(append(sig.M, append(tx.Bytes(), ty.Bytes()...)...))
+		if i == ringsize - 1 {
+			C[0] = new(big.Int).SetBytes(C_i[:])	
+		} else {
+			C[i] = new(big.Int).SetBytes(C_i[:])	
+		}	
+	}
 
-	// calculate c[0]
-	px, py = curve.ScalarMult(ring[1].X, ring[1].Y, C[1].Bytes())
-	sx, sy = curve.ScalarBaseMult(S[1].Bytes())
-	tx, ty = curve.Add(sx, sy, px, py)	
-	C_i = sha3.Sum256(append(sig.M, append(tx.Bytes(), ty.Bytes()...)...))
-	C[0] = new(big.Int).SetBytes(C_i[:])	
+	// // calculate c[0]
+	// px, py := curve.ScalarMult(ring[ringsize-1].X, ring[ringsize-1].Y, C[ringsize-1].Bytes())
+	// sx, sy := curve.ScalarBaseMult(S[ringsize-1].Bytes())
+	// tx, ty := curve.Add(sx, sy, px, py)	
+	// C_i := sha3.Sum256(append(sig.M, append(tx.Bytes(), ty.Bytes()...)...))
+	// C[0] = new(big.Int).SetBytes(C_i[:])	
 
 	return bytes.Equal(sig.C.Bytes(), C[0].Bytes()), nil
 }
