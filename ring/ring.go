@@ -16,11 +16,11 @@ import (
 type Ring []*ecdsa.PublicKey
 
 type RingSign struct {
-	M []byte
-	S []*big.Int
-	C *big.Int
-	Ring Ring // todo: fix this?
-	Curve elliptic.Curve
+	M []byte // message
+	S []*big.Int // ring signature values
+	C *big.Int // ring signature value
+	Ring Ring // array of public keys
+	Curve elliptic.Curve 
 }
 
 // helper function, returns type of v
@@ -59,11 +59,10 @@ func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey) ([]*ecdsa.PublicKey) {
 	return ring
 }
 
-// create ring signature from list of public keys given
-// inputs
+// create ring signature from list of public keys given inputs:
 // msg: byte array, message to be signed
-// ring: array of PublicKeys to be included in the ring
-// privkey: PrivateKey of signer
+// ring: array of *ecdsa.PublicKeys to be included in the ring
+// privkey: *ecdsa.PrivateKey of signer
 func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSign, error) {
 	// check ringsize > 1
 	ringsize := len(ring)
@@ -126,8 +125,8 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	S[0] = new(big.Int).Sub(u, new(big.Int).Mod(new(big.Int).Mul(C[0], privkey.D), curve.Params().N))
 
 	// check that u*G = s[0]*G + c[0]*P[0]
-	sx, sy := curve.ScalarBaseMult(S[0].Bytes())
 	px, py := curve.ScalarMult(ring[0].X, ring[0].Y, C[0].Bytes())
+	sx, sy := curve.ScalarBaseMult(S[0].Bytes())
 	tx, ty := curve.Add(sx, sy, px, py) 
 
 	// check that H(m, s[0]*G + c[0]*P[0]) == H(m, u*G) == C[1]
@@ -145,33 +144,30 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey) (*RingSi
 	return sig, nil
 }
 
+// verify ring signature contained in RingSign struct
+// returns true if a valid signature, false otherwise
 func Verify(sig *RingSign) (bool, error) { 
 	// setup
 	ring := sig.Ring
 	ringsize := len(ring)
 	S := sig.S
 	C := make([]*big.Int, ringsize)
+	C[0] = sig.C
 	curve := ring[0].Curve
 
-	// calculate c[1] = H(m, s[0]*G + c[0]*P[0])
-	for i := 1; i < ringsize; i++ {
-		px, py := curve.ScalarMult(ring[i-1].X, ring[i-1].Y, sig.C.Bytes())
-		sx, sy := curve.ScalarBaseMult(S[i-1].Bytes())
+	// calculate c[i+1] = H(m, s[i]*G + c[i]*P[i])
+	// and c[0] = H)(m, s[n-1]*G + c[n-1]*P[n-1]) where n is the ring size
+	for i := 0; i < ringsize; i++ {
+		px, py := curve.ScalarMult(ring[i].X, ring[i].Y, C[i].Bytes())
+		sx, sy := curve.ScalarBaseMult(S[i].Bytes())
 		tx, ty := curve.Add(sx, sy, px, py)	
 		C_i := sha3.Sum256(append(sig.M, append(tx.Bytes(), ty.Bytes()...)...))
 		if i == ringsize - 1 {
 			C[0] = new(big.Int).SetBytes(C_i[:])	
 		} else {
-			C[i] = new(big.Int).SetBytes(C_i[:])	
+			C[i+1] = new(big.Int).SetBytes(C_i[:])	
 		}	
 	}
-
-	// // calculate c[0]
-	// px, py := curve.ScalarMult(ring[ringsize-1].X, ring[ringsize-1].Y, C[ringsize-1].Bytes())
-	// sx, sy := curve.ScalarBaseMult(S[ringsize-1].Bytes())
-	// tx, ty := curve.Add(sx, sy, px, py)	
-	// C_i := sha3.Sum256(append(sig.M, append(tx.Bytes(), ty.Bytes()...)...))
-	// C[0] = new(big.Int).SetBytes(C_i[:])	
 
 	return bytes.Equal(sig.C.Bytes(), C[0].Bytes()), nil
 }

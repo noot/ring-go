@@ -2,12 +2,14 @@ package test
 
 import (
 	"testing"
+
+	"crypto/rand"
  	"golang.org/x/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noot/ring-go/ring"
 )
 
-func createSig() *ring.RingSign {
+func createSig(size int) *ring.RingSign {
 	/* generate new private public keypair */
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 
@@ -17,7 +19,7 @@ func createSig() *ring.RingSign {
 	msgHash := msgHashArr[:]
 
 	/* generate keyring */
-	keyring := ring.GenNewKeyRing(2, privkey)
+	keyring := ring.GenNewKeyRing(size, privkey)
 
 	sig, err := ring.Sign(msgHash, keyring, privkey)
 	if err != nil {
@@ -76,12 +78,25 @@ func TestSign(t *testing.T) {
 }
 
 func TestVerify(t *testing.T) {
-	sig := createSig()
+	sig := createSig(5)
 	/* verify signature */
 	ver, err := ring.Verify(sig)
 	if err != nil { 
 		t.Error("verification error")
 	} else if !ver {
 		t.Error("verified? false")
+	}
+}
+
+func TestVerifyFalse(t *testing.T) {
+	sig := createSig(5)
+	curve := sig.Ring[0].Curve
+	sig.C, _ = rand.Int(rand.Reader, curve.Params().P)	
+	/* verify signature */
+	ver, err := ring.Verify(sig)
+	if err != nil { 
+		t.Error("verification error")
+	} else if ver {
+		t.Error("verified? true")
 	}
 }
