@@ -22,11 +22,14 @@ func main() {
 	msgHashArr := sha3.Sum256([]byte(msg))
 	msgHash := msgHashArr[:]
 
+	/* secret index */
+	s := 17
+
 	/* generate keyring */
-	keyring := ring.GenNewKeyRing(17, privkey)
+	keyring := ring.GenNewKeyRing(33, privkey, s)
 
 	/* sign */
-	sig, err := ring.Sign(msgHash, keyring, privkey)
+	sig, err := ring.Sign(msgHash, keyring, privkey, s)
 	if err != nil {
 		log.Fatal(err)
 	}
