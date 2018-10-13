@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	//"encoding/hex"
+	"io/ioutil"
 	"github.com/noot/ring-go/ring"
 
  	"golang.org/x/crypto/sha3"
@@ -12,14 +14,19 @@ import (
 
 func main() {
 	fmt.Println("starting ring-go...")
-	fmt.Println("starting generation of keys...")
 
 	/* generate new private public keypair */
-	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+	privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	/* sign message */
-	msg := "helloworld"
-	msgHashArr := sha3.Sum256([]byte(msg))
+	file, err := ioutil.ReadFile("./message.txt")
+	if err != nil {
+		log.Fatal("could not read message from message.txt", err)
+	}
+	msgHashArr := sha3.Sum256(file)
 	msgHash := msgHashArr[:]
 
 	/* secret index */

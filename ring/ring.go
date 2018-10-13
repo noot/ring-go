@@ -16,9 +16,10 @@ import (
 type Ring []*ecdsa.PublicKey
 
 type RingSign struct {
+	Size int // size of ring
 	M []byte // message
-	S []*big.Int // ring signature values
 	C *big.Int // ring signature value
+	S []*big.Int // ring signature values
 	Ring Ring // array of public keys
 	Curve elliptic.Curve 
 }
@@ -77,6 +78,7 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) (
 	pubkey := privkey.Public().(*ecdsa.PublicKey)
 	curve := pubkey.Curve
 	sig := new(RingSign)
+	sig.Size = ringsize
 	sig.M = m
 	sig.Ring = ring
 	sig.Curve = curve
@@ -155,7 +157,7 @@ func Sign(m []byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) (
 func Verify(sig *RingSign) (bool, error) { 
 	// setup
 	ring := sig.Ring
-	ringsize := len(ring)
+	ringsize := sig.Size
 	S := sig.S
 	C := make([]*big.Int, ringsize)
 	C[0] = sig.C
