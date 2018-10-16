@@ -26,14 +26,14 @@ func main() {
 	if err != nil {
 		log.Fatal("could not read message from message.txt", err)
 	}
-	msgHashArr := sha3.Sum256(file)
-	msgHash := msgHashArr[:]
+	msgHash := sha3.Sum256(file)
 
 	/* secret index */
 	s := 17
 
 	/* generate keyring */
 	keyring := ring.GenNewKeyRing(33, privkey, s)
+	//fmt.Printf("%x\n", keyring[0].X)
 
 	/* sign */
 	sig, err := ring.Sign(msgHash, keyring, privkey, s)
