@@ -42,17 +42,24 @@ func (r Ring) Bytes() (b []byte) {
 // converts the signature to a byte array
 // this is the format that will be used when passing EVM bytecode
 func (r *RingSign) ByteifySignature() (sig []byte) {
-	b := []byte{}
-	for i := 0; i < 3; i++ {
-		binary.LittleEndian.PutUint64(b, uint64(0))
-		sig = append(sig, b[:]...)
-	}
-    binary.LittleEndian.PutUint64(b, uint64(r.Size))
+	b := make([]byte, 8)
+	// for i := 0; i < 3; i++ {
+	// 	binary.LittleEndian.PutUint64(b, uint64(0))
+	// 	sig = append(sig, b[:]...)
+	// }
+    binary.BigEndian.PutUint64(b, uint64(r.Size))
     sig = append(sig, b[:]...)
+    sig = append(sig, r.M[:]...)
 
-	// size := [32]byte(r.Size)
-	// b = append(b, size)
-	return b
+    // todo: format to 32 bytes
+    sig = append(sig, r.C.Bytes()...)
+    for i := 0; i < r.Size; i++ {
+    	sig = append(sig, r.S[i].Bytes()...)
+    	sig = append(sig, r.Ring[i].X.Bytes()...)
+    	sig = append(sig, r.Ring[i].Y.Bytes()...)
+    }
+
+	return sig
 }
 
 // marshals the byteified signature into a RingSign struct

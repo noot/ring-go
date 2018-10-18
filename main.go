@@ -29,10 +29,10 @@ func main() {
 	msgHash := sha3.Sum256(file)
 
 	/* secret index */
-	s := 17
+	s := 7
 
 	/* generate keyring */
-	keyring := ring.GenNewKeyRing(33, privkey, s)
+	keyring := ring.GenNewKeyRing(17, privkey, s)
 	//fmt.Printf("%x\n", keyring[0].X)
 
 	/* sign */
@@ -41,9 +41,12 @@ func main() {
 		log.Fatal(err)
 	}
 
+	byteSig := sig.ByteifySignature()
+
 	fmt.Println("signature: ")
-	fmt.Println(sig.S)
-	fmt.Println(sig.C)
+	fmt.Println(fmt.Sprintf("0x%x", byteSig))
+	// fmt.Println(sig.S)
+	// fmt.Println(sig.C)
 
 	/* verify signature */
 	ver, err := ring.Verify(sig)
