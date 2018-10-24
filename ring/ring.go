@@ -39,32 +39,80 @@ func (r Ring) Bytes() (b []byte) {
 	return
 }
 
+func PadTo32Bytes(in []byte) (out []byte) {
+	out = append(out, in...)
+	for {
+		if len(out) == 32 {
+			return
+		}
+		out = append([]byte{0}, out...)
+	}
+}
+
 // converts the signature to a byte array
 // this is the format that will be used when passing EVM bytecode
 func (r *RingSign) ByteifySignature() (sig []byte) {
+	// padding to 32 bytes for `size` param
+	// b := make([]byte, 24)
+	// binary.LittleEndian.PutUint64(b, uint64(0))
+	// sig = append(sig, b[:]...)
+	
+	// add size and message
 	b := make([]byte, 8)
-	// for i := 0; i < 3; i++ {
-	// 	binary.LittleEndian.PutUint64(b, uint64(0))
-	// 	sig = append(sig, b[:]...)
-	// }
     binary.BigEndian.PutUint64(b, uint64(r.Size))
     sig = append(sig, b[:]...)
     sig = append(sig, r.M[:]...)
 
-    // todo: format to 32 bytes
     sig = append(sig, r.C.Bytes()...)
     for i := 0; i < r.Size; i++ {
     	sig = append(sig, r.S[i].Bytes()...)
     	sig = append(sig, r.Ring[i].X.Bytes()...)
+    	// fmt.Println(fmt.Sprintf("%x", r.Ring[i].X))
     	sig = append(sig, r.Ring[i].Y.Bytes()...)
     }
 
-	return sig
+    // correct length of byteified signature in bytes:
+    // 32 * (1 + 1 + size + size + size) + 8 = 32*(size*3 + 2) + 8
+	return
 }
 
 // marshals the byteified signature into a RingSign struct
 func MarshalSignature(r []byte) (*RingSign) {
 	sig := new(RingSign)
+
+	size := r[0:8]
+	m := r[8:40]
+	c := r[40:72]
+
+	var m_byte [32]byte
+	copy(m_byte[:], m)
+
+	size_uint := binary.BigEndian.Uint64(size)
+	size_int := int(size_uint)
+
+	sig.Size = size_int
+	sig.M = m_byte
+	sig.C = new(big.Int).SetBytes(c)
+
+	bytelen := size_int * 96 + 72
+
+	j := 0
+	sig.S = make([]*big.Int, size_int)
+	sig.Ring = make([]*ecdsa.PublicKey, size_int)
+
+	for i := 72; i < bytelen; i += 96 {
+		s_i := r[i:i+32]
+		x_i := r[i+32:i+64]
+		y_i := r[i+64:i+96]
+
+		sig.S[j] = new(big.Int).SetBytes(s_i)
+		sig.Ring[j] = new(ecdsa.PublicKey)
+		sig.Ring[j].X = new(big.Int).SetBytes(x_i)
+		sig.Ring[j].Y = new(big.Int).SetBytes(y_i)	
+
+		j++
+	}
+
 	return sig
 }
 

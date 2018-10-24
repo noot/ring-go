@@ -52,4 +52,7 @@ func main() {
 	ver, err := ring.Verify(sig)
 	if err != nil { log.Fatal(err) }
 	fmt.Println("verified? ", ver)
+
+	marshal_sig := ring.MarshalSignature(byteSig)
+	fmt.Println("marshalling ok?", marshal_sig == sig)
 }
