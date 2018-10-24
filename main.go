@@ -46,8 +46,7 @@ func main() {
 	fmt.Println(fmt.Sprintf("0x%x", byteSig))
 
 	/* verify signature */
-	ver, err := ring.Verify(sig)
-	if err != nil { log.Fatal(err) }
+	ver := ring.Verify(sig)
 	fmt.Println("verified? ", ver)
 
 	marshal_sig := ring.MarshalSignature(byteSig)

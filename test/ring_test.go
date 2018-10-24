@@ -3,7 +3,6 @@ package test
 import (
 	"testing"
 
-	"math/big"
 	"crypto/rand"
  	"golang.org/x/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -16,8 +15,7 @@ func createSig(size int, s int) *ring.RingSign {
 
 	/* sign message */
 	msg := "helloworld"
-	msgHashArr := sha3.Sum256([]byte(msg))
-	msgHash := msgHashArr[:]
+	msgHash := sha3.Sum256([]byte(msg))
 
 	/* generate keyring */
 	keyring := ring.GenNewKeyRing(size, privkey, s)
@@ -63,8 +61,7 @@ func TestSign(t *testing.T) {
 
 	/* sign message */
 	msg := "helloworld"
-	msgHashArr := sha3.Sum256([]byte(msg))
-	msgHash := msgHashArr[:]
+	msgHash := sha3.Sum256([]byte(msg))
 
 	/* generate keyring */
 	keyring := ring.GenNewKeyRing(2, privkey, 0)
@@ -84,10 +81,8 @@ func TestVerify(t *testing.T) {
 		t.Error("signing error")
 	}
 	/* verify signature */
-	ver, err := ring.Verify(sig)
-	if err != nil { 
-		t.Error("verification error")
-	} else if !ver {
+	ver := ring.Verify(sig)
+ 	if !ver {
 		t.Error("verified? false")
 	}
 }
@@ -100,10 +95,8 @@ func TestVerifyFalse(t *testing.T) {
 	curve := sig.Ring[0].Curve
 	sig.C, _ = rand.Int(rand.Reader, curve.Params().P)	
 	/* verify signature */
-	ver, err := ring.Verify(sig)
-	if err != nil { 
-		t.Error("verification error")
-	} else if ver {
+	ver := ring.Verify(sig)
+	if ver {
 		t.Error("verified? true")
 	}
 }
@@ -113,13 +106,14 @@ func TestVerifyWrongMessage(t *testing.T) {
 	if sig == nil {
 		t.Error("signing error")
 	}
-	m, _ := rand.Int(rand.Reader, new(big.Int).SetInt64(2^64))
-	sig.M = m.Bytes()
+
+	msg := "noot"
+	msgHash := sha3.Sum256([]byte(msg))
+	sig.M = msgHash
+
 	/* verify signature */
-	ver, err := ring.Verify(sig)
-	if err != nil { 
-		t.Error("verification error")
-	} else if ver {
+	ver := ring.Verify(sig)
+	if ver {
 		t.Error("verified? true")
 	}
 }

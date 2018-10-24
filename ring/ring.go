@@ -234,7 +234,7 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 
 // verify ring signature contained in RingSign struct
 // returns true if a valid signature, false otherwise
-func Verify(sig *RingSign) (bool, error) { 
+func Verify(sig *RingSign) (bool) { 
 	// setup
 	ring := sig.Ring
 	ringsize := sig.Size
@@ -257,5 +257,5 @@ func Verify(sig *RingSign) (bool, error) {
 		}	
 	}
 
-	return bytes.Equal(sig.C.Bytes(), C[0].Bytes()), nil
+	return bytes.Equal(sig.C.Bytes(), C[0].Bytes())
 }
