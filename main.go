@@ -3,10 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	//"encoding/hex"
-	"reflect"
 	"io/ioutil"
 	"github.com/noot/ring-go/ring"
+	"crypto/elliptic"
 
  	"golang.org/x/crypto/sha3"
 
@@ -34,7 +33,6 @@ func main() {
 
 	/* generate keyring */
 	keyring := ring.GenNewKeyRing(17, privkey, s)
-	//fmt.Printf("%x\n", keyring[0].X)
 
 	/* sign */
 	sig, err := ring.Sign(msgHash, keyring, privkey, s)
@@ -46,11 +44,11 @@ func main() {
 
 	fmt.Println("signature: ")
 	fmt.Println(fmt.Sprintf("0x%x", byteSig))
-	// fmt.Println(sig.S)
-	// fmt.Println(sig.C)
 
 	/* verify signature */
 	ver, err := ring.Verify(sig)
 	if err != nil { log.Fatal(err) }
 	fmt.Println("verified? ", ver)
+
+	marshal_sig := ring.MarshalSignature(byteSig)
 }

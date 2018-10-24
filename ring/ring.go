@@ -113,6 +113,8 @@ func MarshalSignature(r []byte) (*RingSign) {
 		j++
 	}
 
+	sig.Curve = elliptic.P256()
+
 	return sig
 }
 
