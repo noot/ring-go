@@ -118,13 +118,20 @@ func MarshalSignature(r []byte) (*RingSign) {
 	return sig
 }
 
+// calculate key image I = x * H_p(P) where H_p is a hash function that returns a point
+// H_p(P) = sha3(P) * G
 func GenKeyImage(privkey *ecdsa.PrivateKey) (*ecdsa.PublicKey) {
 	pubkey := privkey.Public().(*ecdsa.PublicKey)
 	image := new(ecdsa.PublicKey)
-	x := sha3.Sum256(pubkey.X.Bytes())
-	y := sha3.Sum256(pubkey.Y.Bytes())
-	image.X = new(big.Int).SetBytes(x[:])
-	image.Y = new(big.Int).SetBytes(y[:])
+
+	// calculate sha3(P)
+	h_p := sha3.Sum256(append(pubkey.X.Bytes(), pubkey.Y.Bytes()...))
+	// calculate H_p(P) = sha3(P) * G
+	h_x, h_y := elliptic.P256().ScalarBaseMult(h_p[:])
+
+	// calculate I = x * H_p(P)
+	image.X = new(big.Int).Mul(privkey.D, h_x)
+	image.Y = new(big.Int).Mul(privkey.D, h_y)
 	return image
 }
 
