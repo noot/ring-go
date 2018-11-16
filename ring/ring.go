@@ -10,7 +10,7 @@ import (
 	"crypto/elliptic"
 	"crypto/ecdsa"
 
- 	"golang.org/x/crypto/sha3"
+ 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -116,6 +116,16 @@ func MarshalSignature(r []byte) (*RingSign) {
 	sig.Curve = elliptic.P256()
 
 	return sig
+}
+
+func GenKeyImage(privkey *ecdsa.PrivateKey) (*ecdsa.PublicKey) {
+	pubkey := privkey.Public().(*ecdsa.PublicKey)
+	image := new(ecdsa.PublicKey)
+	x := sha3.Sum256(pubkey.X.Bytes())
+	y := sha3.Sum256(pubkey.Y.Bytes())
+	image.X = new(big.Int).SetBytes(x[:])
+	image.Y = new(big.Int).SetBytes(y[:])
+	return image
 }
 
 // creates a ring with size specified by `size` and places the public key corresponding to `privkey` in index 0 of the ring
