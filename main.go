@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"io/ioutil"
-	"github.com/noot/ring-go/ring"
+	"github.com/noot/linkable-ring/ring"
 
  	//"golang.org/x/crypto/sha3"
  	"github.com/ethereum/go-ethereum/crypto/sha3"
