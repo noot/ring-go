@@ -164,8 +164,7 @@ func HashPoint(p *ecdsa.PublicKey) (*big.Int, *big.Int) {
 	// y := sha3.Sum256(p.Y.Bytes())
 	// return new(big.Int).SetBytes(x[:]), new(big.Int).SetBytes(y[:])
 	hash := sha3.Sum256(append(p.X.Bytes(), p.Y.Bytes()...))
-	curve := elliptic.P256()
-	return curve.ScalarBaseMult(hash[:])
+	return elliptic.P256().ScalarBaseMult(hash[:])
 }
 
 // create ring signature from list of public keys given inputs:
@@ -214,7 +213,7 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	// start at secret index s
 	// compute L_s = u*G
 	l_x, l_y := curve.ScalarBaseMult(u.Bytes())
-	// compute R_s = u*H_p(P_s)
+	// compute R_s = u*H_p(P[s])
 	h_x, h_y := HashPoint(pubkey)
 	r_x, r_y := curve.ScalarMult(h_x, h_y, u.Bytes())
 
@@ -265,12 +264,15 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	S[s] = new(big.Int).Mod(new(big.Int).Sub(u, new(big.Int).Mul(C[s], privkey.D)), curve.Params().N)
 
 	// check that u*G = S[s]*G + c[s]*P[s]
+	ux, uy := curve.ScalarBaseMult(u.Bytes()) // u*G
 	px, py := curve.ScalarMult(ring[s].X, ring[s].Y, C[s].Bytes())
 	sx, sy := curve.ScalarBaseMult(S[s].Bytes())
 	l_x, l_y = curve.Add(sx, sy, px, py) 
 
-	px, py = curve.ScalarMult(image.X, image.Y, C[s].Bytes()) // px, py = C[s]*I
+	// check that u*H_p(P[s]) = S[s]*H_p(P[s]) + C[s]*I
+	px, py = curve.ScalarMult(image.X, image.Y, C[s].Bytes())// px, py = C[s]*I
 	hx, hy := HashPoint(ring[s])
+	tx, ty := curve.ScalarMult(hx, hy, u.Bytes())
 	sx, sy = curve.ScalarMult(hx, hy, S[s].Bytes())	// sx, sy = S[s]*H_p(P[s])
 	r_x, r_y = curve.Add(sx, sy, px, py) 
 
@@ -280,7 +282,7 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	// check that H(m, L[s], R[s]) == C[s+1]
 	C_i = sha3.Sum256(append(m[:], append(l, r...)...))
 
-	if /* !bytes.Equal(tx.Bytes(), l_x.Bytes()) || !bytes.Equal(ty.Bytes(), l_y.Bytes()) ||*/ !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_i[:]) {
+	if !bytes.Equal(ux.Bytes(), l_x.Bytes()) || !bytes.Equal(uy.Bytes(), l_y.Bytes()) || !bytes.Equal(tx.Bytes(), r_x.Bytes()) || !bytes.Equal(ty.Bytes(), r_y.Bytes()) { //|| !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_i[:]) {
 			return nil, errors.New("error closing ring")
 	}
 
