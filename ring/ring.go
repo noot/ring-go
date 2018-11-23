@@ -10,7 +10,7 @@ import (
 	"crypto/elliptic"
 	"crypto/ecdsa"
 
- 	"golang.org/x/crypto/sha3"
+ 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -210,7 +210,7 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	}
 
 	// close ring by finding s[0] = ( u - c[0]*k[0] ) mod P where P[0] = k[0]*G and P is the order of the curve
-	S[s] = new(big.Int).Sub(u, new(big.Int).Mod(new(big.Int).Mul(C[s], privkey.D), curve.Params().N))
+	S[s] = new(big.Int).Mod(new(big.Int).Sub(u, new(big.Int).Mul(C[s], privkey.D)), curve.Params().N)
 
 	// check that u*G = s[0]*G + c[0]*P[0]
 	px, py := curve.ScalarMult(ring[s].X, ring[s].Y, C[s].Bytes())
