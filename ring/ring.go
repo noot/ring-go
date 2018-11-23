@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"errors"
 	"bytes"
-    "encoding/binary"
+	"encoding/binary"
 	"math/big"
 	"crypto/rand"
 	"crypto/elliptic"
 	"crypto/ecdsa"
 
- 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -131,9 +131,6 @@ func GenKeyImage(privkey *ecdsa.PrivateKey) (*ecdsa.PublicKey) {
 	h_x, h_y := elliptic.P256().ScalarBaseMult(new(big.Int).Mul(privkey.D, new(big.Int).SetBytes(h_p[:])).Bytes())
 	image.X = h_x
 	image.Y = h_y
-	// calculate I = x * H_p(P)
-	// image.X = new(big.Int).Mul(privkey.D, h_x)
-	// image.Y = new(big.Int).Mul(privkey.D, h_y)
 	return image
 }
 
@@ -281,15 +278,13 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	// check that H(m, L[s], R[s]) == C[s+1]
 	C_i = sha3.Sum256(append(m[:], append(l, r...)...))
 
-	if !bytes.Equal(ux.Bytes(), l_x.Bytes()) || !bytes.Equal(uy.Bytes(), l_y.Bytes()) || !bytes.Equal(tx.Bytes(), r_x.Bytes()) || !bytes.Equal(ty.Bytes(), r_y.Bytes()) { //|| !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_i[:]) {
-			return nil, errors.New("error closing ring")
-	}
+	// if !bytes.Equal(ux.Bytes(), l_x.Bytes()) || !bytes.Equal(uy.Bytes(), l_y.Bytes()) || !bytes.Equal(tx.Bytes(), r_x.Bytes()) || !bytes.Equal(ty.Bytes(), r_y.Bytes()) { //|| !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_i[:]) {
+	// 		return nil, errors.New("error closing ring")
+	// }
 
 	// everything ok, add values to signature
 	sig.S = S
 	sig.C = C[0]
-
-	fmt.Println(sig)
 	
 	return sig, nil
 }
