@@ -127,12 +127,13 @@ func GenKeyImage(privkey *ecdsa.PrivateKey) (*ecdsa.PublicKey) {
 
 	// calculate sha3(P)
 	h_p := sha3.Sum256(append(pubkey.X.Bytes(), pubkey.Y.Bytes()...))
-	// calculate H_p(P) = sha3(P) * G
-	h_x, h_y := elliptic.P256().ScalarBaseMult(h_p[:])
-
+	// calculate H_p(P) = x * sha3(P) * G
+	h_x, h_y := elliptic.P256().ScalarBaseMult(new(big.Int).Mul(privkey.D, new(big.Int).SetBytes(h_p[:])).Bytes())
+	image.X = h_x
+	image.Y = h_y
 	// calculate I = x * H_p(P)
-	image.X = new(big.Int).Mul(privkey.D, h_x)
-	image.Y = new(big.Int).Mul(privkey.D, h_y)
+	// image.X = new(big.Int).Mul(privkey.D, h_x)
+	// image.Y = new(big.Int).Mul(privkey.D, h_y)
 	return image
 }
 
@@ -159,9 +160,12 @@ func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicK
 }
 
 func HashPoint(p *ecdsa.PublicKey) (*big.Int, *big.Int) {
-	x := sha3.Sum256(p.X.Bytes())
-	y := sha3.Sum256(p.Y.Bytes())
-	return new(big.Int).SetBytes(x[:]), new(big.Int).SetBytes(y[:])
+	// x := sha3.Sum256(p.X.Bytes())
+	// y := sha3.Sum256(p.Y.Bytes())
+	// return new(big.Int).SetBytes(x[:]), new(big.Int).SetBytes(y[:])
+	hash := sha3.Sum256(append(p.X.Bytes(), p.Y.Bytes()...))
+	curve := elliptic.P256()
+	return curve.ScalarBaseMult(hash[:])
 }
 
 // create ring signature from list of public keys given inputs:
@@ -202,7 +206,7 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	S := make([]*big.Int, ringsize)
 
 	// pick random scalar u
-	u, err := rand.Int(rand.Reader, curve.Params().P)	// unsure what the range of this scalar should be. up to N or P?
+	u, err := rand.Int(rand.Reader, curve.Params().P)
 	if err != nil {
 		return nil, err
 	}
@@ -257,24 +261,34 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	}
 
 	// close ring by finding S[s] = ( u - c[s]*k[s] ) mod P where P[s] = k[s]*G and P is the order of the curve
-	S[s] = new(big.Int).Sub(u, new(big.Int).Mod(new(big.Int).Mul(C[s], privkey.D), curve.Params().N))
+	//S[s] = new(big.Int).Mod(u, new(big.Int).Sub(new(big.Int).Mul(C[s], privkey.D), curve.Params().N))
+	S[s] = new(big.Int).Mod(new(big.Int).Sub(u, new(big.Int).Mul(C[s], privkey.D)), curve.Params().N)
 
 	// check that u*G = S[s]*G + c[s]*P[s]
 	px, py := curve.ScalarMult(ring[s].X, ring[s].Y, C[s].Bytes())
 	sx, sy := curve.ScalarBaseMult(S[s].Bytes())
-	tx, ty := curve.Add(sx, sy, px, py) 
+	l_x, l_y = curve.Add(sx, sy, px, py) 
 
-	// check that H(m, L[0], R[0]) == H(m, u*G) == C[1]
-	C_i = sha3.Sum256(append(m[:], append(tx.Bytes(), ty.Bytes()...)...))
-	C_big := new(big.Int).SetBytes(C_i[:])
+	px, py = curve.ScalarMult(image.X, image.Y, C[s].Bytes()) // px, py = C[s]*I
+	hx, hy := HashPoint(ring[s])
+	sx, sy = curve.ScalarMult(hx, hy, S[s].Bytes())	// sx, sy = S[s]*H_p(P[s])
+	r_x, r_y = curve.Add(sx, sy, px, py) 
 
-	if !bytes.Equal(tx.Bytes(), l_x.Bytes()) || !bytes.Equal(ty.Bytes(), l_y.Bytes()) || !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_big.Bytes()) {
+	l = append(l_x.Bytes(), l_y.Bytes()...)
+	r = append(r_x.Bytes(), r_y.Bytes()...)
+
+	// check that H(m, L[s], R[s]) == C[s+1]
+	C_i = sha3.Sum256(append(m[:], append(l, r...)...))
+
+	if /* !bytes.Equal(tx.Bytes(), l_x.Bytes()) || !bytes.Equal(ty.Bytes(), l_y.Bytes()) ||*/ !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_i[:]) {
 			return nil, errors.New("error closing ring")
 	}
 
 	// everything ok, add values to signature
 	sig.S = S
 	sig.C = C[0]
+
+	fmt.Println(sig)
 	
 	return sig, nil
 }
@@ -301,13 +315,13 @@ func Verify(sig *RingSign) (bool) {
 
 		// calculate L_i = s_i*G + c_i*P_i
 		px, py := curve.ScalarMult(ring[i].X, ring[i].Y, C[i].Bytes()) // px, py = c_i*P_i
-		sx, sy := curve.ScalarBaseMult(S[i].Bytes())	// sx, sy = s[n-1]*G
+		sx, sy := curve.ScalarBaseMult(S[i].Bytes())	// sx, sy = s[i]*G
 		l_x, l_y := curve.Add(sx, sy, px, py) 
 
 		// calculate R_i = s_i*H_p(P_i) + c_i*I
-		px, py = curve.ScalarMult(image.X, image.Y, C[i].Bytes()) // px, py = c_i*I
+		px, py = curve.ScalarMult(image.X, image.Y, C[i].Bytes()) // px, py = c[i]*I
 		hx, hy := HashPoint(ring[i])
-		sx, sy = curve.ScalarMult(hx, hy, S[i].Bytes())	// sx, sy = s[n-1]*H_p(P_i)
+		sx, sy = curve.ScalarMult(hx, hy, S[i].Bytes())	// sx, sy = s[i]*H_p(P[i])
 		r_x, r_y := curve.Add(sx, sy, px, py) 
 
 		// calculate c[i+1] = H(m, L_i, R_i)
