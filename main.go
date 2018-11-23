@@ -5,10 +5,9 @@ import (
 	"log"
 	"io/ioutil"
 	"github.com/noot/ring-go/ring"
-	"crypto/elliptic"
 
- 	"golang.org/x/crypto/sha3"
-
+ 	//"golang.org/x/crypto/sha3"
+ 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -48,6 +47,4 @@ func main() {
 	/* verify signature */
 	ver := ring.Verify(sig)
 	fmt.Println("verified? ", ver)
-
-	marshal_sig := ring.MarshalSignature(byteSig)
 }
