@@ -53,11 +53,6 @@ func PadTo32Bytes(in []byte) (out []byte) {
 // converts the signature to a byte array
 // this is the format that will be used when passing EVM bytecode
 func (r *RingSign) ByteifySignature() (sig []byte) {
-	// padding to 32 bytes for `size` param
-	// b := make([]byte, 24)
-	// binary.LittleEndian.PutUint64(b, uint64(0))
-	// sig = append(sig, b[:]...)
-	
 	// add size and message
 	b := make([]byte, 8)
     binary.BigEndian.PutUint64(b, uint64(r.Size))
@@ -119,21 +114,6 @@ func MarshalSignature(r []byte) (*RingSign) {
 	return sig
 }
 
-// calculate key image I = x * H_p(P) where H_p is a hash function that returns a point
-// H_p(P) = sha3(P) * G
-func GenKeyImage(privkey *ecdsa.PrivateKey) (*ecdsa.PublicKey) {
-	pubkey := privkey.Public().(*ecdsa.PublicKey)
-	image := new(ecdsa.PublicKey)
-
-	// calculate sha3(P)
-	h_p := sha3.Sum256(append(pubkey.X.Bytes(), pubkey.Y.Bytes()...))
-	// calculate H_p(P) = x * sha3(P) * G
-	h_x, h_y := elliptic.P256().ScalarBaseMult(new(big.Int).Mul(privkey.D, new(big.Int).SetBytes(h_p[:])).Bytes())
-	image.X = h_x
-	image.Y = h_y
-	return image
-}
-
 // creates a ring with size specified by `size` and places the public key corresponding to `privkey` in index 0 of the ring
 // returns a new key ring of type []*ecdsa.PublicKey
 func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicKey) {
@@ -156,12 +136,26 @@ func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicK
 	return ring
 }
 
+// calculate key image I = x * H_p(P) where H_p is a hash function that returns a point
+// H_p(P) = sha3(P) * G
+func GenKeyImage(privkey *ecdsa.PrivateKey) (*ecdsa.PublicKey) {
+	pubkey := privkey.Public().(*ecdsa.PublicKey)
+	image := new(ecdsa.PublicKey)
+
+	// calculate sha3(P)
+	h_x, h_y := HashPoint(pubkey)
+
+	// calculate H_p(P) = x * sha3(P) * G
+	i_x, i_y := privkey.Curve.ScalarMult(h_x, h_y, privkey.D.Bytes())
+
+	image.X = i_x
+	image.Y = i_y
+	return image
+}
+
 func HashPoint(p *ecdsa.PublicKey) (*big.Int, *big.Int) {
-	// x := sha3.Sum256(p.X.Bytes())
-	// y := sha3.Sum256(p.Y.Bytes())
-	// return new(big.Int).SetBytes(x[:]), new(big.Int).SetBytes(y[:])
 	hash := sha3.Sum256(append(p.X.Bytes(), p.Y.Bytes()...))
-	return elliptic.P256().ScalarBaseMult(hash[:])
+	return p.Curve.ScalarBaseMult(hash[:])
 }
 
 // create ring signature from list of public keys given inputs:
@@ -278,9 +272,9 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	// check that H(m, L[s], R[s]) == C[s+1]
 	C_i = sha3.Sum256(append(m[:], append(l, r...)...))
 
-	// if !bytes.Equal(ux.Bytes(), l_x.Bytes()) || !bytes.Equal(uy.Bytes(), l_y.Bytes()) || !bytes.Equal(tx.Bytes(), r_x.Bytes()) || !bytes.Equal(ty.Bytes(), r_y.Bytes()) { //|| !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_i[:]) {
-	// 		return nil, errors.New("error closing ring")
-	// }
+	if !bytes.Equal(ux.Bytes(), l_x.Bytes()) || !bytes.Equal(uy.Bytes(), l_y.Bytes()) || !bytes.Equal(tx.Bytes(), r_x.Bytes()) || !bytes.Equal(ty.Bytes(), r_y.Bytes()) { //|| !bytes.Equal(C[(s+1)%ringsize].Bytes(), C_i[:]) {
+			return nil, errors.New("error closing ring")
+	}
 
 	// everything ok, add values to signature
 	sig.S = S
@@ -304,11 +298,6 @@ func Verify(sig *RingSign) (bool) {
 	// calculate c[i+1] = H(m, s[i]*G + c[i]*P[i])
 	// and c[0] = H)(m, s[n-1]*G + c[n-1]*P[n-1]) where n is the ring size
 	for i := 0; i < ringsize; i++ {
-		// px, py := curve.ScalarMult(ring[i].X, ring[i].Y, C[i].Bytes())
-		// sx, sy := curve.ScalarBaseMult(S[i].Bytes())
-		// tx, ty := curve.Add(sx, sy, px, py)	
-		// C_i := sha3.Sum256(append(sig.M[:], append(tx.Bytes(), ty.Bytes()...)...))
-
 		// calculate L_i = s_i*G + c_i*P_i
 		px, py := curve.ScalarMult(ring[i].X, ring[i].Y, C[i].Bytes()) // px, py = c_i*P_i
 		sx, sy := curve.ScalarBaseMult(S[i].Bytes())	// sx, sy = s[i]*G
