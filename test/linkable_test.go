@@ -3,9 +3,9 @@ package test
 import (
 	"testing"
 	"crypto/ecdsa"
-	"io/ioutil"
+	//"io/ioutil"
 	//"crypto/rand"
- 	"golang.org/x/crypto/sha3"
+ 	//"golang.org/x/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noot/linkable-ring/ring"
 )
@@ -43,19 +43,5 @@ func TestHashPoint(t *testing.T) {
 	h_x, h_y := ring.HashPoint(p.Public().(*ecdsa.PublicKey))
 	if h_x == nil || h_y == nil {
 		t.Error("did not hash point")
-	}
-}
-
-func TestSign(t *testing.T) {
-	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	s := 3
-	keyring := ring.GenNewKeyRing(7, privkey, s)
-
-	file, err := ioutil.ReadFile("./message.txt")
-	m := sha3.Sum256(file)
-	_, err = ring.Sign(m, keyring, privkey, s)
-	if err != nil {
-		t.Error("could not sign")
 	}
 }
