@@ -55,21 +55,20 @@ func PadTo32Bytes(in []byte) (out []byte) {
 func (r *RingSign) ByteifySignature() (sig []byte) {
 	// add size and message
 	b := make([]byte, 8)
-    binary.BigEndian.PutUint64(b, uint64(r.Size))
-    sig = append(sig, b[:]...)
-    sig = append(sig, r.M[:]...)
+	binary.BigEndian.PutUint64(b, uint64(r.Size))
+	sig = append(sig, b[:]...)
+	sig = append(sig, r.M[:]...)
 
-    sig = append(sig, r.C.Bytes()...)
-    for i := 0; i < r.Size; i++ {
-    	sig = append(sig, r.S[i].Bytes()...)
-    	sig = append(sig, r.Ring[i].X.Bytes()...)
-    	// fmt.Println(fmt.Sprintf("%x", r.Ring[i].X))
-    	sig = append(sig, r.Ring[i].Y.Bytes()...)
+	sig = append(sig, r.C.Bytes()...)
+	for i := 0; i < r.Size; i++ {
+	sig = append(sig, r.S[i].Bytes()...)
+	sig = append(sig, r.Ring[i].X.Bytes()...)
+	sig = append(sig, r.Ring[i].Y.Bytes()...)
     }
 
     // correct length of byteified signature in bytes:
     // 32 * (1 + 1 + size + size + size) + 8 = 32*(size*3 + 2) + 8
-	return
+    return sig
 }
 
 // marshals the byteified signature into a RingSign struct
@@ -322,4 +321,8 @@ func Verify(sig *RingSign) (bool) {
 	}
 
 	return bytes.Equal(sig.C.Bytes(), C[0].Bytes())
+}
+
+func Link(sig_a *RingSign, sig_b *RingSign) (bool) {
+	return sig_a.I.X == sig_b.I.X && sig_a.I.Y == sig_b.I.Y
 }
