@@ -8,7 +8,7 @@ go 1.10
 `go get github.com/noot/ring-go`
 
 ### usage	
-the master branch is an implementation of unique ring signatures (no key images). the branch `linkable` contains an implementation of linkable ring signatures.
+the branch `unique` is an implementation of unique ring signatures (no key images). the branch `linkable` contains an implementation of linkable ring signatures.
 
 the algorithm including `Sign()` and `Verify()` (and Link() for linkable) is located in `ring/ring.go`.
 `message.txt` contains a message to be signed with a ring.
