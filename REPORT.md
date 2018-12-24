@@ -8,15 +8,15 @@ This is a report written by me, @noot, for my University of Toronto course ESC49
    Each Ethereum block consists of a **block header** which contains information about the current state of the network.  This current state includes both account balances and values stored in smart contracts.
   Transactions on the Ethereum network are signed using elliptic curve cryptography. **EXPAND ON THIS** Specifically,  the elliptic curve digital signature alogorithm, or ECDSA, is used.  A user may have an account on the network, which consists of: a public key; a private key; and an address.  A valid transaction submitted to the network will be included in a block, thus changing the state of the network.
 
-> explain precompiles
-> explain addresses / signing
+* explain precompiles
+* explain addresses / signing
   
 ##### Cryptography
 write summaries of:
-> elliptic curve crypto / discrete log problem
-> ECDSA 
-> Ethereum accounts
-> ring signatures
+* elliptic curve crypto / discrete log problem
+* ECDSA 
+* Ethereum accounts
+* ring signatures
 
 ### Problem Formulation
 ##### Motivation
@@ -36,16 +36,16 @@ write summaries of:
 
 ### Literature Review
 Ethereum-based:
-> Mobius
-> Miximus
+* Mobius
+* Miximus
 other:
-> Monero
-> zcash
+* Monero
+* zcash
 
 ### Implementation
-> explain how ring signatures are used
-> how mixer will work
-> expand on what I've done so far
+* explain how ring signatures are used
+* how mixer will work
+* expand on what I've done so far
 
 ### Difficulties
 what issues have I had so far?
@@ -55,11 +55,11 @@ fill in when completed
 
 ### Discussion
 discuss:
-> gas costs / $$ cost
-> usability / steps needed for user
+* gas costs / $$ cost
+* usability / steps needed for user
 
 ### Conclusion
-> next steps
+* next steps
 
 ### References
 [1] Ethereum Yellow Paper. https://ethereum.github.io/yellowpaper/paper.pdf
