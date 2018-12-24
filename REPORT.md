@@ -20,6 +20,7 @@ write summaries of:
 * ECDSA 
 * Ethereum accounts
 * ring signatures
+* zero-knowledge protocols
 
 ### Problem Formulation
 ##### Motivation
@@ -28,13 +29,13 @@ write summaries of:
   A mixer is a third-party application which attempts to solve this problem.  Users submit a deposit in ether and a withdraw address.  The mixer then combines all the funds in a pool and sends the ether to the withdraw address, obfuscating the sender.  However, a major problem with this approach is centralization.  If the third-party wishes to no longer operate the mixer, they can exit with all the funds.  A centralized mixer takes away the value of a decentralized system.  A decentralized mixer in the form of a smart contract would solve this problem.
   
 ##### Formulation
-  To implement a decentralized mixer, ring signatures are useful.  Ring signatures are a cryptographic algorithm used to sign a message as a group. [2] Given a ring signature, one cannot determine which member of the ring generated the signature; it can only be proven that one member of the ring generated the signature.  To generate a ring signature, one needs a message, their public and private keypair, and a list of other public keys that will be included in the ring.  Ethereum uses the secp256k1 elliptic curve, **expand and possibly move to background** which has a key size of 256 bits or 32 bytes.  The maximum ring size that has currently been stored on the network is five. [3] This is not sufficient for anonymity; for plausible deniability, a ring size of nine or more is needed.
+ To implement a decentralized mixer, ring signatures are useful.  Ring signatures are a cryptographic algorithm used to sign a message as a group. [2] Given a ring signature, one cannot determine which member of the ring generated the signature; it can only be proven that one member of the ring generated the signature.  To generate a ring signature, one needs a message, their public and private keypair, and a list of other public keys that will be included in the ring.  Ethereum uses the secp256k1 elliptic curve, **expand and possibly move to background** which has a key size of 256 bits or 32 bytes.  The maximum ring size that has currently been stored on the network is five. [3] This is not sufficient for anonymity; for plausible deniability, a ring size of nine or more is needed.
   
-	The cost of storing a ring signature on the network is extremely high.  Instead, we can reduce costs by moving some of the computation off-chain.  Within an Ethereum client (a piece of software that connects to the Ethereum network), there exist what are called “pre-compiled contracts.”  These are pieces of code that can be run by any smart contract on the network for a pre-determined gas cost.  The price of calling a pre-compiled contract is much lower than if one was to implement the pre-compiled contract within the smart contract.  Thus, pre-compiled contracts can be used to reduce the costs of commonly-used operations on the network.  An example of a pre-compiled contract is ECRECOVER, which given a signed message, recovers the public key used to sign the message.
-	
-	By creating a pre-compiled contract which performs signing with a ring and verification of a ring-signed message, we will be able to use ring signatures on the Ethereum network.  In this thesis, I would like to explore the addition of ring signatures to the EVM.
-	
-	To allow for efficient computation of ring signatures on the Ethereum network, the following need to be implemented:
+  The cost of storing a ring signature on the network is extremely high.  Instead, we can reduce costs by moving some of the computation off-chain.  Within an Ethereum client (a piece of software that connects to the Ethereum network), there exist what are called “pre-compiled contracts.”  These are pieces of code that can be run by any smart contract on the network for a pre-determined gas cost.  The price of calling a pre-compiled contract is much lower than if one was to implement the pre-compiled contract within the smart contract.  Thus, pre-compiled contracts can be used to reduce the costs of commonly-used operations on the network.  An example of a pre-compiled contract is ECRECOVER, which given a signed message, recovers the public key used to sign the message.
+  
+By creating a pre-compiled contract which performs signing with a ring and verification of a ring-signed message, we will be able to use ring signatures on the Ethereum network.  In this thesis, I would like to explore the addition of ring signatures to the EVM.
+
+To allow for efficient computation of ring signatures on the Ethereum network, the following need to be implemented:
 1. An algorithm for signing (ring-sign) and verification (ring-verify) of ring signatures using elliptic curve cryptography.  The Cryptonote whitepaper proposes a one-time ring signature algorithm using ECC. [4]
 2. An implementation of this algorithm, preferably in Go, as the official Ethereum client (go-ethereum) is written in Go.  Additionally, it can be implemented in Rust (for parity-ethereum), if time permits.
 3. Integration of the algorithm with an Ethereum client (go-ethereum or parity-ethereum) as a pre-compiled contract.
