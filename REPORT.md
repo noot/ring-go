@@ -3,13 +3,64 @@ This is a report written by me, @noot, for my University of Toronto course ESC49
 
 ### Introduction and Background
 ##### Ethereum
-   A **blockchain** is a decentralized network of Byzantine fault tolerant nodes which transition from one state to another through network consensus. Ethereum is a blockchain which includes, alongside the transaction-based state, a quasi-Turing complete stack machine also known as the Ethereum Virtual Machine (**EVM**).  This allows for the execution of **smart contracts** on the network.  Smart contracts are pieces of software that live on the network, written in a Turing-complete language (commonly Solidity) and executed on the EVM.  Smart contracts are deterministic and are able to make changes to state if certain conditions are met.  
+   A **blockchain** is a decentralized network of Byzantine fault tolerant nodes which transition from one state to another through network consensus. Byzantine fault tolerance is an idea first introduced regarding distributed computer systems, particularly multi-core processors.  If one part of the system is faulty and gives incorrect signals to the rest of the system, we want to be assured that the system overall maintains the correct state. In a **proof-of-work** blockchain, such as Ethereum, as long as over 50% of the nodes are honest, we can be assured that the correct state is maintained.
+   
+   Ethereum is a blockchain which includes, alongside the transaction-based state, a quasi-Turing-complete stack machine also known as the Ethereum Virtual Machine (**EVM**).  This allows for the execution of **smart contracts** on the network.  Smart contracts are pieces of software that live on the network, written in a Turing-complete language (commonly Solidity) and executed on the EVM.  Smart contracts are deterministic and are able to make changes to state if certain conditions are met.  
+   
+   On Ethereum, addresses may be either user accounts *or* smart contracts.  Transactions can be directed towards either a user account, usually involving transfer of ether, or a smart contract, involving execution of one of its functions.  A user account has a corresponding **private key** which can be used to access the funds in the account.  A contract *does not* have a corresponding private key; no one *owns* the contract once it is deployed. Functionality for ownership must be programmed into the contract from the start; there is no inherent owner of the contract.
    
    All transactions on the network involve the native currency or **fuel** called ether.  Every transaction on the network uses a certain amount of **gas** which is used to prevent smart contracts from using all the network capacity.  For example, an infinite loop cannot occur as it will eventually run out of gas.
    
-   Each Ethereum block consists of a **block header** which contains information about the current state of the network.  This current state includes both account balances and values stored in smart contracts.
+   Each Ethereum block consists of a **block header** which contains information about the current state of the network.  This current state includes both account balances (`txHash` and `receiptHash`) and values stored in smart contracts (`root` or `stateRoot`). The following is the structure of the block header in go-ethereum, commonly known as **geth**: [1] (https://github.com/ethereum/go-ethereum/blob/master/core/types/block.go#L70)
    
-  Transactions on the Ethereum network are signed using elliptic curve cryptography. **EXPAND ON THIS** Specifically,  the elliptic curve digital signature alogorithm, or ECDSA, is used.  A user may have an account on the network, which consists of: a public key; a private key; and an address.  A valid transaction submitted to the network will be included in a block, thus changing the state of the network.
+  ```
+   type Header struct {
+    ParentHash  common.Hash    
+    UncleHash   common.Hash    
+    Coinbase    common.Address 
+    Root        common.Hash    
+    TxHash      common.Hash   
+    ReceiptHash common.Hash    
+    Bloom       Bloom          
+    Difficulty  *big.Int       
+    Number      *big.Int       
+    GasLimit    uint64        
+    GasUsed     uint64        
+    Time        *big.Int     
+    Extra       []byte        
+    MixDigest   common.Hash    
+    Nonce       BlockNonce    
+}
+```
+   In this report, the `gasLimit` and `gasUsed` parameters are relevant.  Each transaction included in the block has a certain gas cost associated with it.  The `gasLimit` of a block is the maximum amount of gas that can be consumed by the total of transactions in the block. The `gasUsed` is the amount of gas used actually by all of the transactions. `gasUsed` can range from 0 to `gasLimit.`
+   
+   Transactions in Ethereum consist of a `to` address, a `from` address, a `value` in ether, and a `data` field, as well as information about gas.  Additionally, the transaction needs to be cryptographically signed by the account it is coming from. The following is a `transaction` struct: 
+   
+```
+   type transaction struct {
+	AccountNonce uint64         
+	GasPrice     *big.Int       
+	GasLimit     uint64          
+	To	     *common.Address 
+	Value        *big.Int        
+	Data         []byte          
+
+	// Signature values
+	V *big.Int 
+	R *big.Int 
+	S *big.Int 
+}
+```
+ 
+  Relevant to this report is `data`, `to`, `value`, `gasPrice`, `gasLimit`, and v, r, s (the cryptographic signature parameters.)  Notice there is no `from` field; the sender of the transaction is inferred from the signature.
+  
+  In a transaction, `value` and `gasPrice` are measured in *wei*, not in ether. Wei is the smallest denomination of the currency; 10^18 wei == 1 ether.
+  
+  `data` is a byte array of data used in contract calls. When the `to` address is the address of a contract, `data` contains encoded information about which function to call and with what parameters.  If the `to` address is a user account, `data` is irrelevant.  
+  
+  `value` is the amount of wei that is being transferred from the sender to the recipient in this transaction. The `gasLimit` specifies the maximum amount of gas that may be used by this transaction and `gasPrice` specified the price of gas, in wei per unit of gas.  Multiplying `gasLimit` by `gasPrice` gives the actual maximum cost, in wei, of the gas used by this transaction.
+   
+  Transactions on the Ethereum network are signed using elliptic curve cryptography. Specifically,  the elliptic curve digital signature alogorithm, or ECDSA, is used.  A user may have an account on the network, which consists of: a public key; a private key; and an address.  A valid transaction submitted to the network will be included in a block, thus changing the state of the network.
 
 * explain precompiles
 * explain addresses / signing
@@ -55,7 +106,7 @@ other:
 * how mixer will work
 * expand on what I've done so far
 
-### Difficulties
+### Obstacles
 what issues have I had so far?
 
 ### Results
