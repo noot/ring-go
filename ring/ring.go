@@ -10,8 +10,6 @@ import (
 	"crypto/elliptic"
 	"crypto/ecdsa"
 
-	//"encoding/hex"
-
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -79,10 +77,14 @@ func (r *RingSign) SerializeSignature() (sig []byte) {
 }
 
 // deserializes the byteified signature into a RingSign struct
-func DeserializeSignature(r []byte) (*RingSign) {
+func DeserializeSignature(r []byte) (*RingSign, error) {
 	sig := new(RingSign)
-
 	size := r[0:8]
+
+	if len(r) < 72 {
+		return nil, errors.New("incorrect ring size")
+	}
+
 	m := r[8:40]
 
 	var m_byte [32]byte
@@ -96,6 +98,10 @@ func DeserializeSignature(r []byte) (*RingSign) {
 	sig.C = new(big.Int).SetBytes(r[40:72])
 
 	bytelen := size_int * 96
+
+	if len(r) < bytelen+136 {
+		return nil, errors.New("incorrect ring size")
+	}
 
 	j := 0
 	sig.S = make([]*big.Int, size_int)
@@ -119,7 +125,7 @@ func DeserializeSignature(r []byte) (*RingSign) {
 	sig.I.Y = new(big.Int).SetBytes(r[bytelen+104:bytelen+136])
 	sig.Curve = crypto.S256()
 
-	return sig
+	return sig, nil
 }
 
 // creates a ring with size specified by `size` and places the public key corresponding to `privkey` in index 0 of the ring

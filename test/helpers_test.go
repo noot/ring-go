@@ -49,7 +49,10 @@ func TestSerialize(t *testing.T) {
 		t.Error("incorrect signature length")
 	}
 
-	marshal_sig := ring.DeserializeSignature(byteSig)
+	marshal_sig, err := ring.DeserializeSignature(byteSig)
+	if err != nil {
+		t.Error(err)
+	}	
 
 	marshal_ok := reflect.DeepEqual(marshal_sig.S, sig.S) && 
 		reflect.DeepEqual(marshal_sig.Size, sig.Size) && 
@@ -80,7 +83,7 @@ func TestSerializeAndDeserialize(t *testing.T) {
 	msgHash := sha3.Sum256(file)
 
 	s := 9
-	keyring := ring.GenNewKeyRing(29, privkey, s)
+	keyring := ring.GenNewKeyRing(30, privkey, s)
 
 	sig, err := ring.Sign(msgHash, keyring, privkey, s)
 	if err != nil {
@@ -94,7 +97,10 @@ func TestSerializeAndDeserialize(t *testing.T) {
 		t.Error("incorrect signature length")
 	}
 
-	marshal_sig := ring.DeserializeSignature(byteSig)
+	marshal_sig, err := ring.DeserializeSignature(byteSig)
+	if err != nil {
+		t.Error(err)
+	}
 
 	marshal_ok := reflect.DeepEqual(marshal_sig.S, sig.S) && 
 		reflect.DeepEqual(marshal_sig.Size, sig.Size) && 
