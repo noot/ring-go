@@ -10,6 +10,8 @@ import (
 	"crypto/elliptic"
 	"crypto/ecdsa"
 
+	//"encoding/hex"
+
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -52,32 +54,36 @@ func PadTo32Bytes(in []byte) (out []byte) {
 
 // converts the signature to a byte array
 // this is the format that will be used when passing EVM bytecode
-func (r *RingSign) ByteifySignature() (sig []byte) {
+func (r *RingSign) SerializeSignature() (sig []byte) {
 	// add size and message
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(r.Size))
 	sig = append(sig, b[:]...)
 	sig = append(sig, r.M[:]...)
-
 	sig = append(sig, r.C.Bytes()...)
+
 	for i := 0; i < r.Size; i++ {
-	sig = append(sig, r.S[i].Bytes()...)
-	sig = append(sig, r.Ring[i].X.Bytes()...)
-	sig = append(sig, r.Ring[i].Y.Bytes()...)
+		sig = append(sig, r.S[i].Bytes()...)
+		sig = append(sig, r.Ring[i].X.Bytes()...)
+		sig = append(sig, r.Ring[i].Y.Bytes()...)
     }
 
+	sig = append(sig, r.I.X.Bytes()...)
+	sig = append(sig, r.I.Y.Bytes()...)
+
     // correct length of byteified signature in bytes:
-    // 32 * (1 + 1 + size + size + size) + 8 = 32*(size*3 + 2) + 8
+    // m + c + I + n*(P.X + P.Y + s) + size
+    // 32 + 32 + 64 + n*96 + 8
+    // 32(m*96 + 4) + 8
     return sig
 }
 
-// marshals the byteified signature into a RingSign struct
-func MarshalSignature(r []byte) (*RingSign) {
+// deserializes the byteified signature into a RingSign struct
+func DeserializeSignature(r []byte) (*RingSign) {
 	sig := new(RingSign)
 
 	size := r[0:8]
 	m := r[8:40]
-	c := r[40:72]
 
 	var m_byte [32]byte
 	copy(m_byte[:], m)
@@ -87,9 +93,9 @@ func MarshalSignature(r []byte) (*RingSign) {
 
 	sig.Size = size_int
 	sig.M = m_byte
-	sig.C = new(big.Int).SetBytes(c)
+	sig.C = new(big.Int).SetBytes(r[40:72])
 
-	bytelen := size_int * 96 + 72
+	bytelen := size_int * 96
 
 	j := 0
 	sig.S = make([]*big.Int, size_int)
@@ -108,7 +114,10 @@ func MarshalSignature(r []byte) (*RingSign) {
 		j++
 	}
 
-	sig.Curve = elliptic.P256()
+	sig.I = new(ecdsa.PublicKey)
+	sig.I.X = new(big.Int).SetBytes(r[bytelen+72:bytelen+104])
+	sig.I.Y = new(big.Int).SetBytes(r[bytelen+104:bytelen+136])
+	sig.Curve = crypto.S256()
 
 	return sig
 }
