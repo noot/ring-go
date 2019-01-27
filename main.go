@@ -6,6 +6,8 @@ import (
 	"log"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/noot/ring-go/ring"
 
@@ -14,12 +16,33 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
+// prompt to generate a new public-private keypair, encrypt with a password, and save in ./keystore directory
+func gen() {
+	var password string
+	fmt.Print("enter password to encrypt key: ")
+	fmt.Scanln(&password)
+
+	ks := keystore.NewKeyStore("./keystore", keystore.StandardScryptN, keystore.StandardScryptP)
+	account, err := ks.NewAccount(password)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = ks.Export(account, password, password)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("output saved to ./keystore")
+	os.Exit(0)
+}
+
 func main() {
 	fmt.Println("welcome to ring-go...")
 
 	// cli options
 	genPtr := flag.Bool("gen", false, "generate a new public-private keypair")
-	importPtr := flag.Bool("import", false, "import a public key")
 	signPtr := flag.Bool("sign", false, "sign a message with a ring signature")
 	verifyPtr := flag.Bool("verify", false, "verify a ring signature")
 
@@ -31,35 +54,38 @@ func main() {
 
 	flag.Parse()
 	if *genPtr {
-		var password string
-		fmt.Print("enter password to encrypt key: ")
-		fmt.Scanln(&password)
-
-		ks := keystore.NewKeyStore("./keystore", keystore.StandardScryptN, keystore.StandardScryptP)
-		account, err := ks.NewAccount(password)
-
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		_, err = ks.Export(account, password, password)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		fmt.Println("output saved to ./keystore")
-		os.Exit(0)
-	}
-
-	if *importPtr {
-		os.Exit(0)
+		gen()
 	}
 
 	if *signPtr {
-		os.Exit(0)
-	}
+		if len(os.Args) < 3 {
+			fmt.Println("need to supply path to keys: ring-go --sign /path/to/keystore /path/to/pubkey1 /path/to/pubkey2 ...")
+			os.Exit(0)
+		}
+
+		for i, arg := range os.Args {
+
+		}
+		
+		fp, err := filepath.Abs(os.Args[2])
+		if err != nil {
+			log.Fatal("could not read key from ", os.Args[2], "\n", err)
+		}
+
+		file, err := ioutil.ReadFile(fp)
+		if err != nil {
+			log.Fatal("could not read key from ", fp, "\n", err)
+		}
+
+		keyStr := string(file)
+
+		if strings.Compare(keyStr[0:2], "0x") == 0 {
+			keyStr = keyStr[2:]
+		}
+
+		fmt.Println(keyStr)
+
+		os.Exit(0)	}
 
 	if *verifyPtr {
 		os.Exit(0)
