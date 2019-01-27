@@ -11,6 +11,7 @@ import (
 
  	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
 func main() {
@@ -30,6 +31,25 @@ func main() {
 
 	flag.Parse()
 	if *genPtr {
+		var password string
+		fmt.Print("enter password to encrypt key: ")
+		fmt.Scanln(&password)
+
+		ks := keystore.NewKeyStore("./keystore", keystore.StandardScryptN, keystore.StandardScryptP)
+		account, err := ks.NewAccount(password)
+
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		_, err = ks.Export(account, password, password)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		fmt.Println("output saved to ./keystore")
 		os.Exit(0)
 	}
 
