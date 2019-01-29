@@ -30,14 +30,25 @@ func gen() {
 
 	pub := priv.Public().(*ecdsa.PublicKey)
 
-	fp, err := filepath.Abs(fmt.Sprintf("./keystore/%d.priv", time.Now().Unix()))
-	err = ioutil.WriteFile(fp, priv.D.Bytes(), 0644)
+	fp, err := filepath.Abs(fmt.Sprintf("./keystore", time.Now().Unix()))
+	if _, err := os.Stat(fp); os.IsNotExist(err) {
+		os.Mkdir("./keystore", os.ModePerm)
+	}
+
+	fp, err = filepath.Abs(fmt.Sprintf("./keystore/%d.priv", time.Now().Unix()))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x", priv.D.Bytes())), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fp, err = filepath.Abs(fmt.Sprintf("./keystore/%d.pub", time.Now().Unix()))
-	err = ioutil.WriteFile(fp, append(pub.X.Bytes(), pub.Y.Bytes()...), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x", (append(pub.X.Bytes(), pub.Y.Bytes()...)))), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,7 +79,7 @@ func main() {
 	if *signPtr {
 		if len(os.Args) < 2 {
 			fmt.Println("need to supply path to public key directory: ring-go --sign /path/to/pubkey/dir")
-			fmt.Println("optionally specify what keystore account to sign with: ring-go --sign /path/to/pubkey/dir [address_to_sign_with]")
+			fmt.Println("optionally specify what keystore account to sign with: ring-go --sign /path/to/pubkey/dir [/path/to/privkey.priv]")
 			os.Exit(0)
 		}
 
