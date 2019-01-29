@@ -10,28 +10,34 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/noot/ring-go/ring"
 
+	//"github.com/ethereum/go-ethereum/common"
  	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
+	//"github.com/ethereum/go-ethereum/accounts"
+	//"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
-// prompt to generate a new public-private keypair, encrypt with a password, and save in ./keystore directory
+// prompt to generate a new public-private keypair and save in ./keystore directory
 func gen() {
-	var password string
-	fmt.Print("enter password to encrypt key: ")
-	fmt.Scanln(&password)
+	priv, err := crypto.GenerateKey()
+	if err != nil {
+		 log.Fatal(err)
+	}
 
-	ks := keystore.NewKeyStore("./keystore", keystore.StandardScryptN, keystore.StandardScryptP)
-	account, err := ks.NewAccount(password)
+	pub := priv.Public().(*ecdsa.PublicKey)
 
+	fp, err := filepath.Abs(fmt.Sprintf("./keystore/%d.priv", time.Now().Unix()))
+	err = ioutil.WriteFile(fp, priv.D.Bytes(), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = ks.Export(account, password, password)
+	fp, err = filepath.Abs(fmt.Sprintf("./keystore/%d.pub", time.Now().Unix()))
+	err = ioutil.WriteFile(fp, append(pub.X.Bytes(), pub.Y.Bytes()...), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,7 +67,8 @@ func main() {
 
 	if *signPtr {
 		if len(os.Args) < 2 {
-			fmt.Println("need to supply path to public key directory: ring-go --sign /path/to/pubkey/dir [address_to_sign_with]")
+			fmt.Println("need to supply path to public key directory: ring-go --sign /path/to/pubkey/dir")
+			fmt.Println("optionally specify what keystore account to sign with: ring-go --sign /path/to/pubkey/dir [address_to_sign_with]")
 			os.Exit(0)
 		}
 
@@ -102,17 +109,36 @@ func main() {
 	    	ring[i] = pub
 	    }
 		
-		// read encrypted secret key
+		// // read encrypted secret key
+		// ks := keystore.NewKeyStore("./keystore", keystore.StandardScryptN, keystore.StandardScryptP)
 
-
-		// file, err := ioutil.ReadFile(fp)
-		// if err != nil {
-		// 	log.Fatal("could not read key from ", fp, "\n", err)
+		// var account accounts.Account
+		// if len(os.Args) == 5 {
+		// 	address := common.HexToAddress(os.Args[3])
+		// 	acc := new(accounts.Account)
+		// 	acc.Address = address
+		// 	if !ks.HasAddress(address) {
+		// 		log.Fatal("could not find account %s in keystore", os.Args[3])
+		// 	} else {
+		// 		account, err = ks.Find(*acc)
+		// 	}
+		// } else {
+		// 	if len(ks.Accounts()) == 0 {
+		// 		log.Fatal("no accounts in keystore")
+		// 	}
+		// 	// if account unspecified, use first keystore account
+		// 	account = ks.Accounts()[0]		
 		// }
 
+		// var password string
+		// fmt.Print(fmt.Sprintf("enter password to decrypt account %s: ", account.Address.Hex()))
+		// fmt.Scanln(&password)
+		
+		// for err = nil; err != nil; err = ks.Unlock(account, password) {
+		// 	fmt.Print("wrong password!\nenter password to encrypt key: ")
+		// 	fmt.Scanln(&password)			
+		// }
 
-
-		// fmt.Println(keyStr)
 
 		os.Exit(0)	
 	}
