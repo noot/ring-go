@@ -128,10 +128,29 @@ func DeserializeSignature(r []byte) (*RingSign, error) {
 	return sig, nil
 }
 
-// creates a ring with size specified by `size` and places the public key corresponding to `privkey` in index 0 of the ring
+// takes public key ring and places the public key corresponding to `privkey` in index s of the ring
+// returns a key ring of type []*ecdsa.PublicKey
+func GenKeyRing(ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicKey) {
+	size := len(ring)+1
+	new_ring := make([]*ecdsa.PublicKey, size)
+	pubkey := privkey.Public().(*ecdsa.PublicKey)
+
+	for i := 0; i < size; i++ {
+		if i < s {
+			new_ring[i] = ring[i]
+		} else if i == s {
+			ring[s] = pubkey
+		} else {
+			new_ring[i] = ring[i-1]
+		}
+	}
+
+	return new_ring
+}
+
+// creates a ring with size specified by `size` and places the public key corresponding to `privkey` in index s of the ring
 // returns a new key ring of type []*ecdsa.PublicKey
 func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicKey) {
-	//ring := new(Ring)
 	ring := make([]*ecdsa.PublicKey, size)
 	pubkey := privkey.Public().(*ecdsa.PublicKey)
 	ring[s] = pubkey

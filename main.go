@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -58,34 +60,62 @@ func main() {
 	}
 
 	if *signPtr {
-		if len(os.Args) < 3 {
-			fmt.Println("need to supply path to keys: ring-go --sign /path/to/keystore /path/to/pubkey1 /path/to/pubkey2 ...")
+		if len(os.Args) < 2 {
+			fmt.Println("need to supply path to public key directory: ring-go --sign /path/to/pubkey/dir [address_to_sign_with]")
 			os.Exit(0)
 		}
 
-		for i, arg := range os.Args {
-
-		}
-		
+		// read public keys and put them in a ring
 		fp, err := filepath.Abs(os.Args[2])
 		if err != nil {
 			log.Fatal("could not read key from ", os.Args[2], "\n", err)
-		}
+		}	    
+		files, err := ioutil.ReadDir(fp)
+	    if err != nil {
+	        log.Fatal(err)
+	    }
 
-		file, err := ioutil.ReadFile(fp)
-		if err != nil {
-			log.Fatal("could not read key from ", fp, "\n", err)
-		}
+	 	ring := make([]*ecdsa.PublicKey, len(files))
 
-		keyStr := string(file)
+	    for i, file := range files {
+	    	fmt.Println(file.Name())
 
-		if strings.Compare(keyStr[0:2], "0x") == 0 {
-			keyStr = keyStr[2:]
-		}
+	    	fp, err = filepath.Abs(fmt.Sprintf("%s/%s", os.Args[2], file.Name()))
+	    	key, err := ioutil.ReadFile(fp)
+			if err != nil {
+				log.Fatal("could not read key from ", fp, "\n", err)
+			}
 
-		fmt.Println(keyStr)
+			keyStr := string(key)
+			fmt.Println(keyStr)
 
-		os.Exit(0)	}
+			if strings.Compare(keyStr[0:2], "0x") == 0 {
+				keyStr = keyStr[2:66]
+			}
+
+			keyBytes, err := hex.DecodeString(keyStr[0:64])
+			if err != nil {
+				log.Fatal("could not decode key string: ", err)
+			}
+			
+			pub, err := crypto.UnmarshalPubkey(keyBytes)
+	    	ring[i] = pub
+	    }
+		
+		// read encrypted secret key
+
+
+		// file, err := ioutil.ReadFile(fp)
+		// if err != nil {
+		// 	log.Fatal("could not read key from ", fp, "\n", err)
+		// }
+
+
+
+		// fmt.Println(keyStr)
+
+		os.Exit(0)	
+	}
 
 	if *verifyPtr {
 		os.Exit(0)
