@@ -1,0 +1,1 @@
+[{"constant":false,"inputs":[{"name":"_sig","type":"bytes"}],"name":"verify","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"ok","type":"bool"}],"name":"Verify","type":"event"}]
