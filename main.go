@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"log"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -17,8 +17,8 @@ import (
 	"github.com/noot/ring-go/ring"
 
 	//"github.com/ethereum/go-ethereum/common"
- 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	//"github.com/ethereum/go-ethereum/accounts"
 	//"github.com/ethereum/go-ethereum/accounts/keystore"
 )
@@ -27,7 +27,7 @@ import (
 func gen() {
 	priv, err := crypto.GenerateKey()
 	if err != nil {
-		 log.Fatal(err)
+		log.Fatal(err)
 	}
 
 	pub := priv.Public().(*ecdsa.PublicKey)
@@ -64,19 +64,19 @@ func sign() {
 	fp, err := filepath.Abs(os.Args[2])
 	if err != nil {
 		log.Fatal("could not read key from ", os.Args[2], "\n", err)
-	}	    
+	}
 	files, err := ioutil.ReadDir(fp)
-    if err != nil {
-        log.Fatal(err)
-    }
+	if err != nil {
+		log.Fatal(err)
+	}
 
- 	pubkeys := make([]*ecdsa.PublicKey, len(files))
+	pubkeys := make([]*ecdsa.PublicKey, len(files))
 
-    for i, file := range files {
-    	fmt.Print(file.Name(), ":")
+	for i, file := range files {
+		fmt.Print(file.Name(), ":")
 
-    	fp, err = filepath.Abs(fmt.Sprintf("%s/%s", os.Args[2], file.Name()))
-    	key, err := ioutil.ReadFile(fp)
+		fp, err = filepath.Abs(fmt.Sprintf("%s/%s", os.Args[2], file.Name()))
+		key, err := ioutil.ReadFile(fp)
 		if err != nil {
 			log.Fatal("could not read key from ", fp, "\n", err)
 		}
@@ -93,11 +93,11 @@ func sign() {
 		if err != nil {
 			log.Fatal("could not decode key string: ", err)
 		}
-		
+
 		pub, err := crypto.UnmarshalPubkey(keyBytes)
-    	pubkeys[i] = pub
-    }
-	
+		pubkeys[i] = pub
+	}
+
 	// handle secret key and generate ring of pubkeys
 	fp, err = filepath.Abs(os.Args[3])
 	privBytes, err := ioutil.ReadFile(fp)
@@ -105,13 +105,30 @@ func sign() {
 		log.Fatal("could not read key from ", fp, "\n", err)
 	}
 
-	priv := new(ecdsa.PrivateKey)
-	priv.D = new(big.Int).SetBytes(privBytes)
+	privHex := fmt.Sprintf("%s\n", privBytes)
+	fmt.Printf(privHex)
 
-	fmt.Println(priv)
+	priv, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, success := priv.D.SetString(privHex, 16)
+	if !success {
+		log.Fatal("could not parse private key")
+	}
+	//priv.PublicKey.Curve = crypto.S256()
+
+	fmt.Printf("secret.pub:%x\n", priv.D)
 
 	s, err := rand.Int(rand.Reader, new(big.Int).SetInt64(int64(len(pubkeys))))
-	r := ring.GenKeyRing(pubkeys, priv, int(s.Int64()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r, err := ring.GenKeyRing(pubkeys, priv, int(s.Int64()))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// read message and hash
 	fp, err = filepath.Abs(os.Args[4])
@@ -153,16 +170,21 @@ func main() {
 
 	if *signPtr {
 		if len(os.Args) < 2 {
-			fmt.Println("need to supply path to public key directory: ring-go --sign /path/to/pubkey/dir /path/to/privkey.priv -m message.txt")
+			fmt.Println("need to supply path to public key directory: ring-go --sign /path/to/pubkey/dir /path/to/privkey.priv message.txt")
 			os.Exit(0)
 		}
 
 		if len(os.Args) < 3 {
-			fmt.Println("need to supply path to private key file: ring-go --sign /path/to/pubkey/dir /path/to/privkey.priv -m message.txt")
+			fmt.Println("need to supply path to private key file: ring-go --sign /path/to/pubkey/dir /path/to/privkey.priv message.txt")
 			os.Exit(0)
 		}
-	
-		sign()	
+
+		if len(os.Args) < 4 {
+			fmt.Println("need to supply path to message file: ring-go --sign /path/to/pubkey/dir /path/to/privkey.priv message.txt")
+			os.Exit(0)
+		}
+
+		sign()
 	}
 
 	if *verifyPtr {
@@ -170,38 +192,38 @@ func main() {
 	}
 
 	/* generate new private public keypair */
-	privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	/* sign message */
-	file, err := ioutil.ReadFile("./message.txt")
-	if err != nil {
-		log.Fatal("could not read message from message.txt", err)
-	}
-	msgHash := sha3.Sum256(file)
+	// /* sign message */
+	// file, err := ioutil.ReadFile("./message.txt")
+	// if err != nil {
+	// 	log.Fatal("could not read message from message.txt", err)
+	// }
+	// msgHash := sha3.Sum256(file)
 
-	/* secret index */
-	s := 7
+	// /* secret index */
+	// s := 7
 
-	/* generate keyring */
-	keyring := ring.GenNewKeyRing(12, privkey, s)
+	//  generate keyring 
+	// keyring := ring.GenNewKeyRing(12, privkey, s)
 
-	/* sign */
-	sig, err := ring.Sign(msgHash, keyring, privkey, s)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// /* sign */
+	// sig, err := ring.Sign(msgHash, keyring, privkey, s)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	fmt.Println(sig.S)
+	// fmt.Println(sig.S)
 
-	byteSig := sig.SerializeSignature()
+	// byteSig := sig.SerializeSignature()
 
-	fmt.Println("signature: ")
-	fmt.Println(fmt.Sprintf("0x%x", byteSig))
+	// fmt.Println("signature: ")
+	// fmt.Println(fmt.Sprintf("0x%x", byteSig))
 
-	/* verify signature */
-	ver := ring.Verify(sig)
-	fmt.Println("verified? ", ver)
+	// /* verify signature */
+	// ver := ring.Verify(sig)
+	// fmt.Println("verified? ", ver)
 }

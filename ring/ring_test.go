@@ -5,8 +5,8 @@ import (
 
 	"crypto/ecdsa"
 	"crypto/rand"
- 	"golang.org/x/crypto/sha3"
 	"github.com/ethereum/go-ethereum/crypto"
+	"golang.org/x/crypto/sha3"
 )
 
 func createSig(size int, s int) *RingSign {
@@ -18,7 +18,10 @@ func createSig(size int, s int) *RingSign {
 	msgHash := sha3.Sum256([]byte(msg))
 
 	/* generate keyring */
-	keyring := GenNewKeyRing(size, privkey, s)
+	keyring, err := GenNewKeyRing(size, privkey, s)
+	if err != nil {
+		return nil
+	}
 
 	sig, err := Sign(msgHash, keyring, privkey, s)
 	if err != nil {
@@ -32,7 +35,10 @@ func TestGenNewKeyRing(t *testing.T) {
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 
 	/* generate keyring */
-	keyring := GenNewKeyRing(2, privkey, 0)
+	keyring, err := GenNewKeyRing(2, privkey, 0)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if keyring == nil || len(keyring) != 2 {
 		t.Error("could not generate keyring of size 2")
@@ -46,7 +52,10 @@ func TestGenNewKeyRing3(t *testing.T) {
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 
 	/* generate keyring */
-	keyring := GenNewKeyRing(3, privkey, 1)
+	keyring, err := GenNewKeyRing(3, privkey, 1)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if keyring == nil || len(keyring) != 3 {
 		t.Error("could not generate keyring of size 3")
@@ -75,7 +84,10 @@ func TestGenKeyRing(t *testing.T) {
 	}
 
 	/* generate keyring */
-	keyring := GenKeyRing(pubkeys, privkey, s)
+	keyring, err := GenKeyRing(pubkeys, privkey, s)
+	if err != nil {
+		t.Error(err)
+	}
 
 	if keyring == nil || len(keyring) != size+1 {
 		t.Error("could not generate keyring of size 4")
@@ -95,8 +107,11 @@ func TestSign(t *testing.T) {
 	msgHash := sha3.Sum256([]byte(msg))
 
 	/* generate keyring */
-	keyring := GenNewKeyRing(2, privkey, 0)
-
+	keyring, err := GenNewKeyRing(2, privkey, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	
 	sig, err := Sign(msgHash, keyring, privkey, 0)
 	if err != nil {
 		t.Error("error when signing with ring size of 2")
@@ -113,7 +128,7 @@ func TestVerify(t *testing.T) {
 	}
 	/* verify signature */
 	ver := Verify(sig)
- 	if !ver {
+	if !ver {
 		t.Error("verified? false")
 	}
 }
@@ -124,7 +139,7 @@ func TestVerifyFalse(t *testing.T) {
 		t.Error("signing error")
 	}
 	curve := sig.Ring[0].Curve
-	sig.C, _ = rand.Int(rand.Reader, curve.Params().P)	
+	sig.C, _ = rand.Int(rand.Reader, curve.Params().P)
 	/* verify signature */
 	ver := Verify(sig)
 	if ver {
