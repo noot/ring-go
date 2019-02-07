@@ -11,6 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/noot/ring-go/ring"
+	"golang.org/x/crypto/sha3"
+
 	//ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -93,4 +96,25 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Errorf("Cannot deploy RingVerify: %v", err)
 	}	
+
+	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+	msg := "helloworld"
+	msgHash := sha3.Sum256([]byte(msg))
+	keyring, err := ring.GenNewKeyRing(2, privkey, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	
+	sig, err := ring.Sign(msgHash, keyring, privkey, 0)
+	if err != nil {
+		t.Error("error when signing with ring size of 2")
+	} else {
+		t.Log("signing ok with ring size of 2")
+	}
+
+	sigBytes := sig.Serialize()
+	_, err = test.contract.Verify(test.txOpts, sigBytes)
+	if err != nil {
+		t.Error(err)
+	}
 }

@@ -98,6 +98,28 @@ func TestGenKeyRing(t *testing.T) {
 	}
 }
 
+func TestGenKeyImage(t *testing.T) {
+	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+
+	image := GenKeyImage(privkey)
+
+	if image == nil {
+		t.Error("could not generate key image")
+	}
+}
+
+func TestHashPoint(t *testing.T) {
+	p, err := crypto.GenerateKey()
+	if err != nil {
+		t.Error(err)
+	}
+
+	h_x, h_y := HashPoint(p.Public().(*ecdsa.PublicKey))
+	if h_x == nil || h_y == nil {
+		t.Error("did not hash point")
+	}
+}
+
 func TestSign(t *testing.T) {
 	/* generate new private public keypair */
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
@@ -111,12 +133,35 @@ func TestSign(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	
+
 	sig, err := Sign(msgHash, keyring, privkey, 0)
 	if err != nil {
 		t.Error("error when signing with ring size of 2")
 	} else {
 		t.Log("signing ok with ring size of 2")
+		t.Log(sig)
+	}
+}
+
+func TestSignAgain(t *testing.T) {
+	/* generate new private public keypair */
+	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+
+	/* sign message */
+	msg := "helloworld"
+	msgHash := sha3.Sum256([]byte(msg))
+
+	/* generate keyring */
+	keyring, err := GenNewKeyRing(100, privkey, 17)
+	if err != nil {
+		t.Error(err)
+	}
+
+	sig, err := Sign(msgHash, keyring, privkey, 17)
+	if err != nil {
+		t.Error("error when signing with ring size of 100")
+	} else {
+		t.Log("signing ok with ring size of 100")
 		t.Log(sig)
 	}
 }

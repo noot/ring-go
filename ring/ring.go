@@ -52,7 +52,7 @@ func PadTo32Bytes(in []byte) (out []byte) {
 
 // converts the signature to a byte array
 // this is the format that will be used when passing EVM bytecode
-func (r *RingSign) SerializeSignature() (sig []byte) {
+func (r *RingSign) Serialize() (sig []byte) {
 	// add size and message
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(r.Size))
@@ -77,7 +77,7 @@ func (r *RingSign) SerializeSignature() (sig []byte) {
 }
 
 // deserializes the byteified signature into a RingSign struct
-func DeserializeSignature(r []byte) (*RingSign, error) {
+func Deserialize(r []byte) (*RingSign, error) {
 	sig := new(RingSign)
 	size := r[0:8]
 
@@ -131,7 +131,7 @@ func DeserializeSignature(r []byte) (*RingSign, error) {
 // takes public key ring and places the public key corresponding to `privkey` in index s of the ring
 // returns a key ring of type []*ecdsa.PublicKey
 func GenKeyRing(ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicKey, error) {
-	size := len(ring) 
+	size := len(ring) + 1
 	new_ring := make([]*ecdsa.PublicKey, size)
 	pubkey := privkey.Public().(*ecdsa.PublicKey)
 
