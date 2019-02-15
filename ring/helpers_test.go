@@ -17,7 +17,7 @@ func TestPadTo32Bytes(t *testing.T) {
 	}
 }
 
-func TestSerialize(t *testing.T) {
+func TestSerializeAndDeserialize(t *testing.T) {
 	/* generate new private public keypair */
 	privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 	if err != nil {
@@ -45,7 +45,10 @@ func TestSerialize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	byteSig := sig.Serialize()
+	byteSig, err := sig.Serialize()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(byteSig) != 32*(3*sig.Size+4)+8 {
 		t.Fatal("incorrect signature length")
@@ -72,7 +75,7 @@ func TestSerialize(t *testing.T) {
 	}
 }
 
-func TestSerializeAndDeserialize(t *testing.T) {
+func TestSerializeAndDeserializeAgain(t *testing.T) {
 	privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 	if err != nil {
 		t.Fatal(err)
@@ -85,7 +88,7 @@ func TestSerializeAndDeserialize(t *testing.T) {
 	msgHash := sha3.Sum256(file)
 
 	s := 9
-	keyring, err := GenNewKeyRing(30, privkey, s)
+	keyring, err := GenNewKeyRing(100, privkey, s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +98,10 @@ func TestSerializeAndDeserialize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	byteSig := sig.Serialize()
+	byteSig, err := sig.Serialize()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if len(byteSig) != 32*(3*sig.Size+4)+8 {
 		t.Fatal("incorrect signature length")

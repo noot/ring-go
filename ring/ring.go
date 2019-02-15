@@ -52,28 +52,31 @@ func PadTo32Bytes(in []byte) (out []byte) {
 
 // converts the signature to a byte array
 // this is the format that will be used when passing EVM bytecode
-func (r *RingSign) Serialize() (sig []byte) {
+func (r *RingSign) Serialize() ([]byte, error) {
+	sig := []byte{}
 	// add size and message
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(r.Size))
-	sig = append(sig, b[:]...)
-	sig = append(sig, r.M[:]...)
-	sig = append(sig, r.C.Bytes()...)
+	sig = append(sig, b[:]...) // 8 bytes
+	sig = append(sig, PadTo32Bytes(r.M[:])...) // 32 bytes
+	sig = append(sig, PadTo32Bytes(r.C.Bytes())...) // 32 bytes
 
+	// 96 bytes each iteration
 	for i := 0; i < r.Size; i++ {
-		sig = append(sig, r.S[i].Bytes()...)
-		sig = append(sig, r.Ring[i].X.Bytes()...)
-		sig = append(sig, r.Ring[i].Y.Bytes()...)
+		sig = append(sig, PadTo32Bytes(r.S[i].Bytes())...)
+		sig = append(sig, PadTo32Bytes(r.Ring[i].X.Bytes())...)
+		sig = append(sig, PadTo32Bytes(r.Ring[i].Y.Bytes())...)
 	}
 
-	sig = append(sig, r.I.X.Bytes()...)
-	sig = append(sig, r.I.Y.Bytes()...)
+	// 64 bytes
+	sig = append(sig, PadTo32Bytes(r.I.X.Bytes())...)
+	sig = append(sig, PadTo32Bytes(r.I.Y.Bytes())...)
 
-	// correct length of byteified signature in bytes:
-	// m + c + I + n*(P.X + P.Y + s) + size
-	// 32 + 32 + 64 + n*96 + 8
-	// 32(m*96 + 4) + 8
-	return sig
+	if len(sig) != 32*(3*r.Size + 4) + 8 {
+		return []byte{}, errors.New("Could not serialize ring signature")
+	}
+
+	return sig, nil
 }
 
 // deserializes the byteified signature into a RingSign struct
@@ -116,7 +119,7 @@ func Deserialize(r []byte) (*RingSign, error) {
 		sig.Ring[j] = new(ecdsa.PublicKey)
 		sig.Ring[j].X = new(big.Int).SetBytes(x_i)
 		sig.Ring[j].Y = new(big.Int).SetBytes(y_i)
-
+		sig.Ring[j].Curve = crypto.S256()
 		j++
 	}
 
@@ -331,7 +334,7 @@ func Verify(sig *RingSign) bool {
 	S := sig.S
 	C := make([]*big.Int, ringsize)
 	C[0] = sig.C
-	curve := ring[0].Curve
+	curve := sig.Curve
 	image := sig.I
 
 	// calculate c[i+1] = H(m, s[i]*G + c[i]*P[i])
