@@ -112,7 +112,11 @@ func TestVerify(t *testing.T) {
 		t.Log("signing ok with ring size of 2")
 	}
 
-	sigBytes := sig.Serialize()
+	sigBytes, err := sig.Serialize()
+	if err != nil {
+		t.Error(err)
+	}
+
 	_, err = test.contract.Verify(test.txOpts, sigBytes)
 	if err != nil {
 		t.Error(err)
