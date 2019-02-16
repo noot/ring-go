@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 	//"strings"
 	"time"
 
@@ -177,8 +178,8 @@ func main() {
 	// cli options
 	genPtr := flag.Bool("gen", false, "generate a new public-private keypair")
 	signPtr := flag.Bool("sign", false, "sign a message with a ring signature")
-	//messagePtr := flag.String("m", "", "path to message file")
 	verifyPtr := flag.Bool("verify", false, "verify a ring signature")
+	demoPtr := flag.Bool("demo", false, "demo signing a message")
 
 	// if no flags passed, display help
 	if len(os.Args) < 2 {
@@ -214,39 +215,64 @@ func main() {
 		os.Exit(0)
 	}
 
-	/* generate new private public keypair */
-	// privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	if *demoPtr {
+		if len(os.Args) < 3 {
+			fmt.Println("need to supply size of ring: eg. ring-go --demo 17")
+			os.Exit(0)
+		}
 
-	// /* sign message */
-	// file, err := ioutil.ReadFile("./message.txt")
-	// if err != nil {
-	// 	log.Fatal("could not read message from message.txt", err)
-	// }
-	// msgHash := sha3.Sum256(file)
+		// generate new private public keypair
+		privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// /* secret index */
-	// s := 7
+		// sign message 
+		file, err := ioutil.ReadFile("./message.txt")
+		if err != nil {
+			log.Fatal("could not read message from message.txt", err)
+		}
+		msgHash := sha3.Sum256(file)
 
-	//  generate keyring 
-	// keyring := ring.GenNewKeyRing(12, privkey, s)
+		// get ring size from arguments
+		size, err := strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// /* sign */
-	// sig, err := ring.Sign(msgHash, keyring, privkey, s)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+		// secret index 
+		sb, err := rand.Int(rand.Reader, new(big.Int).SetInt64(int64(size)))
+		if err != nil {
+			log.Fatal(err)
+		}
+		s := int(sb.Int64())
 
-	// fmt.Println(sig.S)
+		// generate keyring 
+		keyring, err := ring.GenNewKeyRing(size, privkey, s)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// byteSig := sig.SerializeSignature()
+		// sign 
+		sig, err := ring.Sign(msgHash, keyring, privkey, s)
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	// fmt.Println("signature: ")
-	// fmt.Println(fmt.Sprintf("0x%x", byteSig))
+		fmt.Println(sig.S)
 
-	// /* verify signature */
-	// ver := ring.Verify(sig)
-	// fmt.Println("verified? ", ver)
+		byteSig, err := sig.Serialize()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("signature: ")
+		fmt.Println(fmt.Sprintf("0x%x", byteSig))
+
+		// verify signature 
+		ver := ring.Verify(sig)
+		fmt.Println("verified? ", ver)
+		os.Exit(0)
+	}
+
 }
