@@ -4,7 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	//"encoding/hex"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -75,7 +75,7 @@ func sign() {
 	}
 
 	if len(files) == 0 {
-		log.Fatalf("No public keys from in %s", os.Args[2])
+		log.Fatalf("no public keys from in %s", os.Args[2])
 	}
 
 	pubkeys := make([]*ecdsa.PublicKey, len(files))
@@ -145,7 +145,7 @@ func sign() {
 	}
 
 	// save signature
-	fmt.Println("Signature successfully generated!")
+	fmt.Println("signature successfully generated!")
 
 	fp, err = filepath.Abs("./signatures")
 	if _, err := os.Stat(fp); os.IsNotExist(err) {
@@ -172,8 +172,30 @@ func sign() {
 	os.Exit(0)
 }
 
+func verify() {
+	fp, err := filepath.Abs(os.Args[2])
+	file, err := ioutil.ReadFile(fp)
+	if err != nil {
+		log.Fatal("could not read sigature from ", fp, "\n", err)
+	}	
+
+	sigBytes, err := hex.DecodeString(string(file))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sig, err := ring.Deserialize(sigBytes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ver := ring.Verify(sig)
+	fmt.Println("verified?", ver)
+	os.Exit(0)
+}
+
 func main() {
-	fmt.Println("welcome to ring-go...")
+	//fmt.Println("welcome to ring-go...")
 
 	// cli options
 	genPtr := flag.Bool("gen", false, "generate a new public-private keypair")
@@ -212,7 +234,12 @@ func main() {
 	}
 
 	if *verifyPtr {
-		os.Exit(0)
+		if len(os.Args) < 3 {
+			fmt.Println("need to supply path to signature: ring-go --verify /path/to/signature.sig")
+			os.Exit(0)
+		}
+		
+		verify()
 	}
 
 	if *demoPtr {
@@ -221,7 +248,7 @@ func main() {
 			os.Exit(0)
 		}
 
-		// generate new private public keypair
+		// generate new private/public keypair
 		privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 		if err != nil {
 			log.Fatal(err)
