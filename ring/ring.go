@@ -143,7 +143,6 @@ func GenKeyRing(ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) ([]*e
 	}
 
 	new_ring[s] = pubkey
-
 	for i := 1; i < size; i++ {
 		idx := (i + s) % size
 		new_ring[idx] = ring[i-1]
@@ -215,7 +214,8 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	}
 
 	// setup
-	pubkey := privkey.Public().(*ecdsa.PublicKey)
+	//pubkey := privkey.Public().(*ecdsa.PublicKey)
+	pubkey := &privkey.PublicKey
 	curve := pubkey.Curve
 	sig := new(RingSign)
 	sig.Size = ringsize
@@ -269,6 +269,13 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 			return nil, err
 		}
 
+		if curve == nil {
+			return nil, errors.New(fmt.Sprintf("No curve at index %d", idx))
+		}
+		if ring[idx] == nil {
+			return nil, errors.New(fmt.Sprintf("No public key at index %d", idx))
+		}
+		
 		// calculate L_i = s_i*G + c_i*P_i
 		px, py := curve.ScalarMult(ring[idx].X, ring[idx].Y, C[idx].Bytes()) // px, py = c_i*P_i
 		sx, sy := curve.ScalarBaseMult(s_i.Bytes())                          // sx, sy = s[n-1]*G

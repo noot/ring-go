@@ -2,8 +2,9 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"encoding/hex"
+	//"encoding/hex"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +12,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
-	"strings"
+	//"strings"
 	"time"
 
 	"github.com/noot/ring-go/ring"
@@ -23,7 +24,7 @@ import (
 	//"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
-// prompt to generate a new public-private keypair and save in ./keystore directory
+// generate a new public-private keypair and save in ./keystore directory
 func gen() {
 	priv, err := crypto.GenerateKey()
 	if err != nil {
@@ -46,16 +47,18 @@ func gen() {
 		log.Fatal(err)
 	}
 
-	fp, err = filepath.Abs(fmt.Sprintf("./keystore/%d.pub", time.Now().Unix()))
+	name := time.Now().Unix()
+	fp, err = filepath.Abs(fmt.Sprintf("./keystore/%d.pub", name))
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x", (append(pub.X.Bytes(), pub.Y.Bytes()...)))), 0644)
+	//err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x", elliptic.Marshal(crypto.S256(), pub.X, pub.Y))), 0644)
+	err = ioutil.WriteFile(fp, elliptic.Marshal(crypto.S256(), pub.X, pub.Y), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println("output saved to ./keystore")
+	fmt.Printf("output saved to ./keystore/%d\n", name)
 	os.Exit(0)
 }
 
@@ -70,11 +73,13 @@ func sign() {
 		log.Fatal(err)
 	}
 
+	if len(files) == 0 {
+		log.Fatalf("No public keys from in %s", os.Args[2])
+	}
+
 	pubkeys := make([]*ecdsa.PublicKey, len(files))
 
 	for i, file := range files {
-		fmt.Print(file.Name(), ":")
-
 		fp, err = filepath.Abs(fmt.Sprintf("%s/%s", os.Args[2], file.Name()))
 		key, err := ioutil.ReadFile(fp)
 		if err != nil {
@@ -83,18 +88,16 @@ func sign() {
 
 		keyStr := string(key)
 
-		if strings.Compare(keyStr[0:2], "0x") == 0 {
-			keyStr = keyStr[2:66]
-		}
+		fmt.Printf("%s:%x\n", file.Name(), keyStr)
 
-		fmt.Println(keyStr)
-
-		keyBytes, err := hex.DecodeString(keyStr[0:64])
+		pub, err := crypto.UnmarshalPubkey(key)
 		if err != nil {
-			log.Fatal("could not decode key string: ", err)
+			log.Fatal(err)
 		}
 
-		pub, err := crypto.UnmarshalPubkey(keyBytes)
+		fmt.Printf("%s.X:%x\n", file.Name(), pub.X)
+		fmt.Printf("%s.Y:%x\n", file.Name(), pub.Y)
+
 		pubkeys[i] = pub
 	}
 
@@ -105,27 +108,22 @@ func sign() {
 		log.Fatal("could not read key from ", fp, "\n", err)
 	}
 
-	privHex := fmt.Sprintf("%s\n", privBytes)
-	fmt.Printf(privHex)
+	priv := new(ecdsa.PrivateKey)
+	priv.Curve = crypto.S256()
+	priv.D = big.NewInt(0).SetBytes(privBytes[0:32])
 
-	priv, err := crypto.GenerateKey()
+	priv.PublicKey.Curve = priv.Curve
+	priv.PublicKey.X, priv.PublicKey.Y = priv.Curve.ScalarBaseMult(priv.D.Bytes())
+
+	fmt.Printf("secret.pub:%x%x\n", priv.X, priv.Y)
+
+	sb, err := rand.Int(rand.Reader, new(big.Int).SetInt64(int64(len(pubkeys))))
 	if err != nil {
 		log.Fatal(err)
 	}
-	_, success := priv.D.SetString(privHex, 16)
-	if !success {
-		log.Fatal("could not parse private key")
-	}
-	//priv.PublicKey.Curve = crypto.S256()
+	s := int(sb.Int64())
 
-	fmt.Printf("secret.pub:%x\n", priv.D)
-
-	s, err := rand.Int(rand.Reader, new(big.Int).SetInt64(int64(len(pubkeys))))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	r, err := ring.GenKeyRing(pubkeys, priv, int(s.Int64()))
+	r, err := ring.GenKeyRing(pubkeys, priv, s)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -140,11 +138,36 @@ func sign() {
 	msgHash := sha3.Sum256(msgBytes)
 
 	// all good, let's sign
-	sig, err := ring.Sign(msgHash, r, priv, int(s.Int64()))
+	sig, err := ring.Sign(msgHash, r, priv, s)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(sig)
+
+	// save signature
+	fmt.Println("Signature successfully generated!")
+
+	fp, err = filepath.Abs("./signatures")
+	if _, err := os.Stat(fp); os.IsNotExist(err) {
+		os.Mkdir("./signatures", os.ModePerm)
+	}
+
+	name := time.Now().Unix()
+	fp, err = filepath.Abs(fmt.Sprintf("./signatures/%d.sig", name))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	serializedSig, err := sig.Serialize()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x", serializedSig)), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("output saved to ./signatures/%d.sig\n", name)
 	os.Exit(0)
 }
 
