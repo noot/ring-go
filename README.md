@@ -14,6 +14,7 @@ the algorithm including `Sign()` and `Verify()` (and Link() for linkable) is loc
 
 to use the cli, perform the following:
 ```
+cd $GOPATH/github.com/noot/ring-go
 go build && go install
 ring-go [flags] [opts]
 ```
