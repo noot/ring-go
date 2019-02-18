@@ -2,7 +2,7 @@ package main
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
+	//"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
@@ -18,11 +18,8 @@ import (
 
 	"github.com/noot/ring-go/ring"
 
-	//"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
-	//"github.com/ethereum/go-ethereum/accounts"
-	//"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
 // generate a new public-private keypair and save in ./keystore directory
@@ -53,8 +50,8 @@ func gen() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x", elliptic.Marshal(crypto.S256(), pub.X, pub.Y))), 0644)
-	err = ioutil.WriteFile(fp, elliptic.Marshal(crypto.S256(), pub.X, pub.Y), 0644)
+	err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x%x", pub.X, pub.Y)), 0644)
+	//err = ioutil.WriteFile(fp, elliptic.Marshal(crypto.S256(), pub.X, pub.Y), 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,11 +86,22 @@ func sign() {
 
 		keyStr := string(key)
 
-		fmt.Printf("%s:%x\n", file.Name(), keyStr)
+		fmt.Printf("%s:%s\n", file.Name(), keyStr)
 
-		pub, err := crypto.UnmarshalPubkey(key)
-		if err != nil {
-			log.Fatal(err)
+		if len(keyStr) < 128 {
+			log.Fatalf("public key %s invalid", file.Name())
+		}
+
+		var ok bool
+		pub := new(ecdsa.PublicKey)
+		pub.Curve = crypto.S256()
+		pub.X, ok = new(big.Int).SetString(keyStr[0:64], 16)
+		if !ok {
+			log.Fatalf("could not convert string to public key")
+		}
+		pub.Y, ok = new(big.Int).SetString(keyStr[64:128], 16)
+		if !ok {
+			log.Fatalf("could not convert string to public key")
 		}
 
 		fmt.Printf("%s.X:%x\n", file.Name(), pub.X)
