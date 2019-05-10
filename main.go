@@ -19,7 +19,7 @@ import (
 	"github.com/noot/ring-go/ring"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"golang.org/x/crypto/sha3"
 )
 
 // generate a new public-private keypair and save in ./keystore directory
