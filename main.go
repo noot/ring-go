@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/ecdsa"
-	//"crypto/elliptic"
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
@@ -13,13 +12,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	//"strings"
 	"time"
 
 	"github.com/noot/ring-go/ring"
-
 	"github.com/ethereum/go-ethereum/crypto"
-	"golang.org/x/crypto/sha3"
 )
 
 // generate a new public-private keypair and save in ./keystore directory
@@ -50,6 +46,7 @@ func gen() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	err = ioutil.WriteFile(fp, []byte(fmt.Sprintf("%x%x", pub.X, pub.Y)), 0644)
 	//err = ioutil.WriteFile(fp, elliptic.Marshal(crypto.S256(), pub.X, pub.Y), 0644)
 	if err != nil {
@@ -144,10 +141,22 @@ func sign() {
 		log.Fatal("could not read key from ", fp, "\n", err)
 	}
 
-	msgHash := sha3.Sum256(msgBytes)
+	msgString := fmt.Sprintf("%s", msgBytes[2:42])
+	msg, err := hex.DecodeString(msgString)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("message: %x\n", msg)
+    //hasher := sha3.NewKeccak256()
+    //hasher.Write(msgBytes)
+    //h := hasher.Sum(nil)
+	var hash [32]byte
+	//msgHash := crypto.Keccak256(msgBytes)
+	copy(hash[:], msg)
 
 	// all good, let's sign
-	sig, err := ring.Sign(msgHash, r, priv, s)
+	sig, err := ring.Sign(hash, r, priv, s)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -226,7 +235,7 @@ func main() {
 		if len(os.Args) < 2 {
 			fmt.Println("need to supply path to public key directory: ring-go --sign /path/to/pubkey/dir /path/to/privkey.priv message.txt")
 			os.Exit(0)
-		}
+		} 
 
 		if len(os.Args) < 3 {
 			fmt.Println("need to supply path to private key file: ring-go --sign /path/to/pubkey/dir /path/to/privkey.priv message.txt")
@@ -267,7 +276,9 @@ func main() {
 		if err != nil {
 			log.Fatal("could not read message from message.txt", err)
 		}
-		msgHash := sha3.Sum256(file)
+		var h [32]byte
+		msgHash := crypto.Keccak256(file)
+		copy(h[:], msgHash)
 
 		// get ring size from arguments
 		size, err := strconv.Atoi(os.Args[2])
@@ -289,7 +300,7 @@ func main() {
 		}
 
 		// sign 
-		sig, err := ring.Sign(msgHash, keyring, privkey, s)
+		sig, err := ring.Sign(h, keyring, privkey, s)
 		if err != nil {
 			log.Fatal(err)
 		}
