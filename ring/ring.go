@@ -57,8 +57,8 @@ func (r *RingSign) Serialize() ([]byte, error) {
 	// add size and message
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(r.Size))
-	sig = append(sig, b[:]...) // 8 bytes
-	sig = append(sig, PadTo32Bytes(r.M[:])...) // 32 bytes
+	sig = append(sig, b[:]...)                      // 8 bytes
+	sig = append(sig, PadTo32Bytes(r.M[:])...)      // 32 bytes
 	sig = append(sig, PadTo32Bytes(r.C.Bytes())...) // 32 bytes
 
 	// 96 bytes each iteration
@@ -72,7 +72,7 @@ func (r *RingSign) Serialize() ([]byte, error) {
 	sig = append(sig, PadTo32Bytes(r.I.X.Bytes())...)
 	sig = append(sig, PadTo32Bytes(r.I.Y.Bytes())...)
 
-	if len(sig) != 32*(3*r.Size + 4) + 8 {
+	if len(sig) != 32*(3*r.Size+4)+8 {
 		return []byte{}, errors.New("Could not serialize ring signature")
 	}
 
@@ -275,7 +275,7 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 		if ring[idx] == nil {
 			return nil, errors.New(fmt.Sprintf("No public key at index %d", idx))
 		}
-		
+
 		// calculate L_i = s_i*G + c_i*P_i
 		px, py := curve.ScalarMult(ring[idx].X, ring[idx].Y, C[idx].Bytes()) // px, py = c_i*P_i
 		sx, sy := curve.ScalarBaseMult(s_i.Bytes())                          // sx, sy = s[n-1]*G
@@ -374,5 +374,5 @@ func Verify(sig *RingSign) bool {
 }
 
 func Link(sig_a *RingSign, sig_b *RingSign) bool {
-	return sig_a.I.X == sig_b.I.X && sig_a.I.Y == sig_b.I.Y
+	return sig_a.I.X.Cmp(sig_b.I.X) == 0 && sig_a.I.Y.Cmp(sig_b.I.Y) == 0
 }
