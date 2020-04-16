@@ -25,7 +25,7 @@ func TestSerializeAndDeserialize(t *testing.T) {
 	}
 
 	/* sign message */
-	file, err := ioutil.ReadFile("../message.txt")
+	file, err := ioutil.ReadFile("./message.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestSerializeAndDeserializeAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	file, err := ioutil.ReadFile("../message.txt")
+	file, err := ioutil.ReadFile("./message.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
