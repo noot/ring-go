@@ -1,27 +1,10 @@
-# ring-go
-implementation of linkable ring signatures using elliptic curve crypto in go
-
-### requirements
-go 1.19
-
-### get
-`go get github.com/noot/ring-go`
-
-### references
-this implementation is based off of Ring Confidential Transactions. https://eprint.iacr.org/2015/1098.pdf
-
-### usage
-
-See `examples/main.go`.
-
-```go
 package main
 
 import (
 	"fmt"
 
-	ring "github.com/noot/ring-go"
 	"github.com/ethereum/go-ethereum/crypto"
+	ring "github.com/noot/ring-go"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -53,4 +36,3 @@ func main() {
 
 	fmt.Println("verified signature!")
 }
-```
