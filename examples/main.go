@@ -3,22 +3,19 @@ package main
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/athanorlabs/go-dleq/secp256k1"
 	ring "github.com/noot/ring-go"
 	"golang.org/x/crypto/sha3"
 )
 
 func main() {
-	privkey, err := crypto.GenerateKey()
-	if err != nil {
-		panic(err)
-	}
-
+	curve := secp256k1.NewCurve()
+	privkey := curve.NewRandomScalar()
 	msgHash := sha3.Sum256([]byte("helloworld"))
 	const size = 10
 	const idx = 7
 
-	keyring, err := ring.NewKeyRing(size, privkey, idx)
+	keyring, err := ring.NewKeyRing(curve, size, privkey, idx)
 	if err != nil {
 		panic(err)
 	}

@@ -7,6 +7,8 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/athanorlabs/go-dleq/types"
 )
 
 func padTo32Bytes(in []byte) (out []byte) {
@@ -19,8 +21,13 @@ func padTo32Bytes(in []byte) (out []byte) {
 	}
 }
 
+// TODO: implement this!!
+func hashToCurve(pk types.Point) types.Point {
+	return pk
+}
+
 // based off https://github.com/particl/particl-core/blob/master/src/secp256k1/src/modules/mlsag/main_impl.h#L139
-func hashToCurve(pk *ecdsa.PublicKey) *ecdsa.PublicKey {
+func hashToCurveSecp256k1(pk *ecdsa.PublicKey) *ecdsa.PublicKey {
 	const safety = 128
 	compressedKey := crypto.CompressPubkey(pk)
 	hash := sha3.Sum256(compressedKey)
