@@ -11,6 +11,10 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+var (
+	testMsg = sha3.Sum256([]byte("helloworld"))
+)
+
 func createSig(t *testing.T, size int, idx int) *RingSig {
 	// instantiate private key
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
@@ -19,12 +23,8 @@ func createSig(t *testing.T, size int, idx int) *RingSig {
 	keyring, err := NewKeyRing(size, privkey, idx)
 	require.NoError(t, err)
 
-	// hash message
-	msg := "helloworld"
-	msgHash := sha3.Sum256([]byte(msg))
-
 	// sign message
-	sig, err := Sign(msgHash, keyring, privkey, idx)
+	sig, err := keyring.Sign(testMsg, privkey)
 	require.NoError(t, err)
 	return sig
 }
@@ -92,23 +92,22 @@ func TestSignAgain(t *testing.T) {
 
 func TestVerify(t *testing.T) {
 	sig := createSig(t, 5, 4)
-	require.True(t, Verify(sig))
+	require.True(t, sig.Verify(testMsg))
 }
 
 func TestVerifyFalse(t *testing.T) {
 	sig := createSig(t, 5, 2)
 
 	// alter signature
-	curve := sig.Ring[0].Curve
-	sig.C, _ = rand.Int(rand.Reader, curve.Params().P)
-	require.False(t, Verify(sig))
+	curve := sig.ring[0].Curve
+	sig.c, _ = rand.Int(rand.Reader, curve.Params().P)
+	require.False(t, sig.Verify(testMsg))
 }
 
 func TestVerifyWrongMessage(t *testing.T) {
 	sig := createSig(t, 5, 1)
-	msgHash := sha3.Sum256([]byte("noot"))
-	sig.M = msgHash
-	require.False(t, Verify(sig))
+	fakeMsg := sha3.Sum256([]byte("noot"))
+	require.False(t, sig.Verify(fakeMsg))
 }
 
 func TestLinkabilityTrue(t *testing.T) {
@@ -171,21 +170,21 @@ func testSerializeAndDeserialize(t *testing.T, size, idx int) {
 	byteSig, err := sig.Serialize()
 	require.NoError(t, err)
 
-	expectedLength := 32*(3*sig.Size+4) + 8
+	expectedLength := 32*(3*len(sig.ring)+3) + 8
 	require.Equal(t, expectedLength, len(byteSig))
 
-	res, err := Deserialize(byteSig)
+	res := new(RingSig)
+	err = res.Deserialize(byteSig)
 	require.NoError(t, err)
 
-	ok := reflect.DeepEqual(res.S, sig.S) &&
-		reflect.DeepEqual(res.Size, sig.Size) &&
-		reflect.DeepEqual(res.C, sig.C) &&
-		reflect.DeepEqual(res.M, sig.M) &&
-		reflect.DeepEqual(res.I, sig.I)
+	ok := reflect.DeepEqual(res.s, sig.s) &&
+		reflect.DeepEqual(len(res.ring), len(sig.ring)) &&
+		reflect.DeepEqual(res.c, sig.c) &&
+		reflect.DeepEqual(res.image, sig.image)
 
-	for i := 0; i < sig.Size; i++ {
-		ok = ok && reflect.DeepEqual(res.Ring[i].X, sig.Ring[i].X)
-		ok = ok && reflect.DeepEqual(res.Ring[i].Y, sig.Ring[i].Y)
+	for i := 0; i < len(sig.ring); i++ {
+		ok = ok && reflect.DeepEqual(res.ring[i].X, sig.ring[i].X)
+		ok = ok && reflect.DeepEqual(res.ring[i].Y, sig.ring[i].Y)
 	}
 
 	require.True(t, ok)
