@@ -1,7 +1,7 @@
 filippo.io/edwards25519 v1.0.0 h1:0wAIcmJUqRdI8IJ/3eGi5/HwXZWPujYXXlkrQogz0Ek=
 filippo.io/edwards25519 v1.0.0/go.mod h1:N1IkdkCkiLB6tki+MYJoSx2JTY9NUlxZE7eHn5EwJns=
-github.com/athanorlabs/go-dleq v0.0.0-20230113214028-88537d863b0b h1:gqxRYhjyokcf40FCPIMh99n4sDlGsLlrAUEQDPBDZb4=
-github.com/athanorlabs/go-dleq v0.0.0-20230113214028-88537d863b0b/go.mod h1:DWry6jSD7A13MKmeZA0AX3/xBeQCXDoygX99VPwL3yU=
+github.com/athanorlabs/go-dleq v0.0.0-20230113214619-d6fd7c03e213 h1:2IaAtMG8GEi2A9YdG7swqHadOiyvrysgR1uSEMEQHHI=
+github.com/athanorlabs/go-dleq v0.0.0-20230113214619-d6fd7c03e213/go.mod h1:DWry6jSD7A13MKmeZA0AX3/xBeQCXDoygX99VPwL3yU=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

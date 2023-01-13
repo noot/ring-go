@@ -211,17 +211,18 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 	}
 
 	// check that key at index s is indeed the signer
-	pubkey := ring.curve.ScalarBaseMul(privkey) //privkey.Public().(*ecdsa.PublicKey)
+	pubkey := ring.curve.ScalarBaseMul(privkey)
 	if !ring.pubkeys[ourIdx].Equals(pubkey) {
 		return nil, errors.New("secret index in ring is not signer")
 	}
 
 	// setup
+	curve := ring.curve
+	h := hashToCurve(pubkey)
 	sig := &RingSig{
 		ring:  ring,
-		image: genKeyImage(ring.curve, privkey),
+		image: curve.ScalarMul(privkey, h),
 	}
-	curve := ring.curve
 
 	// start at c[j]
 	c := make([]types.Scalar, size)
@@ -232,7 +233,6 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 	l := curve.ScalarBaseMul(u)
 
 	// compute R[j] = u*H_p(P[j])
-	h := hashToCurve(pubkey)
 	r := curve.ScalarMul(u, h)
 
 	// calculate challenge c[j+1] = H(m, L_j, R_j)
@@ -256,36 +256,34 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 
 		// calculate R_i = s_i*H_p(P_i) + c_i*I
 		cI := curve.ScalarMul(c[idx], sig.image)
-		h := hashToCurve(ring.pubkeys[idx])
-		sH := curve.ScalarMul(s[idx], h)
+		hp := hashToCurve(ring.pubkeys[idx])
+		sH := curve.ScalarMul(s[idx], hp)
 		r := cI.Add(sH)
 
 		// calculate c[i+1] = H(m, L_i, R_i)
 		c[(idx+1)%size] = challenge(curve, m, l, r)
 	}
 
-	// close ring by finding s[j] = ( u - c[j]*x ) mod P
+	// close ring by finding s[j] = u - c[j]*x
 	cx := c[ourIdx].Mul(privkey)
 	s[ourIdx] = u.Sub(cx)
 
 	// check that u*G = s[j]*G + c[j]*P[j]
 	cP := curve.ScalarMul(c[ourIdx], pubkey)
 	sG := curve.ScalarBaseMul(s[ourIdx])
-	l = cP.Add(sG)
-	uG := curve.ScalarBaseMul(u)
-	if !uG.Equals(l) {
+	lNew := cP.Add(sG)
+	if !lNew.Equals(l) {
 		// this should not happen
 		return nil, errors.New("failed to close ring: uG != sG + cP")
 	}
 
-	// check that u*H_p(P[j]) = S[j]*H_p(P[j]) + C[j]*I
+	// check that u*H_p(P[j]) = s[j]*H_p(P[j]) + c[j]*I
 	cI := curve.ScalarMul(c[ourIdx], sig.image)
 	sH := curve.ScalarMul(s[ourIdx], h)
-	r = cI.Add(sH)
-	uH := curve.ScalarMul(u, h)
-	if !uH.Equals(r) {
+	rNew := cI.Add(sH)
+	if !rNew.Equals(r) {
 		// this should not happen
-		return nil, errors.New("WARN: failed to close ring: uH(P) != sH(P) + cI")
+		return nil, errors.New("failed to close ring: uH(P) != sH(P) + cI")
 	}
 
 	// check that H(m, L[j], R[j]) == c[j+1]

@@ -1,6 +1,7 @@
 package ring
 
 import (
+	"filippo.io/edwards25519"
 	dsecp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/sha3"
 
@@ -31,7 +32,21 @@ func hashToCurve(pk types.Point) types.Point {
 }
 
 func hashToCurveEd25519(pk *ed25519.PointImpl) *ed25519.PointImpl {
-	return pk
+	const safety = 128
+	compressedKey := pk.Encode()
+	hash := sha3.Sum256(compressedKey)
+
+	for i := 0; i < safety; i++ {
+		hash[31] |= byte(1 << 7)
+		p, err := new(edwards25519.Point).SetBytes(hash[:])
+		if err == nil && p.Equal(edwards25519.NewIdentityPoint()) == 0 {
+			return ed25519.NewPoint(p)
+		}
+
+		hash = sha3.Sum256(hash[:])
+	}
+
+	panic("failed to hash ed25519 point to curve")
 }
 
 // based off https://github.com/particl/particl-core/blob/master/src/secp256k1/src/modules/mlsag/main_impl.h#L139

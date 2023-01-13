@@ -40,6 +40,7 @@ func TestSign_Loop_Ed25519(t *testing.T) {
 	maxSize := 100
 	curve := ed25519.NewCurve()
 	for i := 2; i < maxSize; i++ {
+		t.Log(i)
 		idx, err := rand.Int(rand.Reader, big.NewInt(int64(i)))
 		require.NoError(t, err)
 		sig := createSigWithCurve(t, curve, i, int(idx.Int64()))
