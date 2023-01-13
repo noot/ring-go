@@ -3,6 +3,7 @@ package ring
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"math/big"
 	"reflect"
 	"testing"
 
@@ -27,6 +28,16 @@ func createSig(t *testing.T, size int, idx int) *RingSig {
 	sig, err := keyring.Sign(testMsg, privkey)
 	require.NoError(t, err)
 	return sig
+}
+
+func TestSign_Loop(t *testing.T) {
+	maxSize := 100
+	for i := 2; i < maxSize; i++ {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(i)))
+		require.NoError(t, err)
+		sig := createSig(t, i, int(idx.Int64()))
+		require.True(t, sig.Verify(testMsg))
+	}
 }
 
 func TestNewKeyRing(t *testing.T) {

@@ -15,7 +15,7 @@ func main() {
 	}
 
 	msgHash := sha3.Sum256([]byte("helloworld"))
-	const size = 16
+	const size = 10
 	const idx = 7
 
 	keyring, err := ring.NewKeyRing(size, privkey, idx)

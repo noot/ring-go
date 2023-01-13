@@ -214,7 +214,6 @@ func (r Ring) Sign(m [32]byte, privkey *ecdsa.PrivateKey) (*RingSig, error) {
 // privkey: *ecdsa.PrivateKey of signer
 // ourIdx: index of signer in ring
 func Sign(m [32]byte, ring Ring, privkey *ecdsa.PrivateKey, ourIdx int) (*RingSig, error) {
-	// TODO: don't pass index, just get it from the ring?
 	size := len(ring)
 	if size < 2 {
 		return nil, errors.New("size of ring less than two")
@@ -289,51 +288,53 @@ func Sign(m [32]byte, ring Ring, privkey *ecdsa.PrivateKey, ourIdx int) (*RingSi
 		// calculate R_i = s_i*H_p(P_i) + c_i*I
 		px, py = curve.ScalarMult(sig.image.X, sig.image.Y, c[idx].Bytes()) // px, py = c_i*I
 		ge := hashToCurve(ring[idx])
-		sx, sy = curve.ScalarMult(ge.X, ge.Y, s_i.Bytes()) // sx, sy = s[n-1]*H_p(P_i)
+		sx, sy = curve.ScalarMult(ge.X, ge.Y, s_i.Bytes()) // sx, sy = s_i*H_p(P_i)
 		r_x, r_y := curve.Add(sx, sy, px, py)
 
 		// calculate c[i+1] = H(m, L_i, R_i)
 		l := append(l_x.Bytes(), l_y.Bytes()...)
 		r := append(r_x.Bytes(), r_y.Bytes()...)
 		c_i = sha3.Sum256(append(m[:], append(l, r...)...))
-
-		if i == size-1 {
-			c[ourIdx] = new(big.Int).SetBytes(c_i[:])
-		} else {
-			c[(idx+1)%size] = new(big.Int).SetBytes(c_i[:])
-		}
+		c[(idx+1)%size] = new(big.Int).SetBytes(c_i[:])
 	}
 
-	// close ring by finding S[s] = ( u - c[s]*k[s] ) mod P
-	// where k[s] is the private key and P is the curve order
-	s[ourIdx] = new(big.Int).Mod(new(big.Int).Sub(u, new(big.Int).Mul(c[ourIdx], privkey.D)), curve.Params().N)
+	// close ring by finding S[s] = ( u - c[s]*x ) mod P
+	// where x is the private key and P is the curve order
+	cx := new(big.Int).Mul(c[ourIdx], privkey.D)
+	cxReduced := new(big.Int).Mod(cx, curve.Params().N)
+	s[ourIdx] = new(big.Int).Sub(u, cxReduced)
+	s[ourIdx] = new(big.Int).Mod(s[ourIdx], curve.Params().N)
 
 	// check that u*G = S[s]*G + c[s]*P[s]
-	ux, uy := curve.ScalarBaseMult(u.Bytes()) // u*G
-	px, py := curve.ScalarMult(ring[ourIdx].X, ring[ourIdx].Y, c[ourIdx].Bytes())
+	px, py := curve.ScalarMult(pubkey.X, pubkey.Y, c[ourIdx].Bytes())
 	sx, sy := curve.ScalarBaseMult(s[ourIdx].Bytes())
 	l_x, l_y = curve.Add(sx, sy, px, py)
+	ux, uy := curve.ScalarBaseMult(u.Bytes()) // u*G
+	if !bytes.Equal(ux.Bytes(), l_x.Bytes()) ||
+		!bytes.Equal(uy.Bytes(), l_y.Bytes()) {
+		// this should not happen
+		return nil, errors.New("failed to close ring: uG != sG + cP")
+	}
 
 	// check that u*H_p(P[s]) = S[s]*H_p(P[s]) + C[s]*I
 	px, py = curve.ScalarMult(sig.image.X, sig.image.Y, c[ourIdx].Bytes()) // px, py = C[s]*I
 	ge = hashToCurve(pubkey)
-	tx, ty := curve.ScalarMult(ge.X, ge.Y, u.Bytes())
 	sx, sy = curve.ScalarMult(ge.X, ge.Y, s[ourIdx].Bytes()) // sx, sy = S[s]*H_p(P[s])
 	r_x, r_y = curve.Add(sx, sy, px, py)
+	tx, ty := curve.ScalarMult(ge.X, ge.Y, u.Bytes())
+	if !bytes.Equal(tx.Bytes(), r_x.Bytes()) ||
+		!bytes.Equal(ty.Bytes(), r_y.Bytes()) {
+		// this should not happen
+		return nil, errors.New("WARN: failed to close ring: uH(P) != sH(P) + cI")
+	}
 
 	l = append(l_x.Bytes(), l_y.Bytes()...)
 	r = append(r_x.Bytes(), r_y.Bytes()...)
 
 	// check that H(m, L[s], R[s]) == C[s+1]
 	c_i = sha3.Sum256(append(m[:], append(l, r...)...))
-
-	// sanity check
-	if !bytes.Equal(ux.Bytes(), l_x.Bytes()) ||
-		!bytes.Equal(uy.Bytes(), l_y.Bytes()) ||
-		!bytes.Equal(tx.Bytes(), r_x.Bytes()) ||
-		!bytes.Equal(ty.Bytes(), r_y.Bytes()) {
-		// this should not happen
-		return nil, errors.New("failed to close ring")
+	if !bytes.Equal(c_i[:], c[(ourIdx+1)%size].Bytes()) {
+		return nil, errors.New("challenge check failed")
 	}
 
 	// everything ok, add values to signature
