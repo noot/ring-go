@@ -5,24 +5,19 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPadTo32Bytes(t *testing.T) {
 	in := []byte{1, 2, 3, 4, 5}
 	out := padTo32Bytes(in)
-	if len(out) != 32 {
-		t.Error("did not pad to 32 bytes")
-	}
+	require.Equal(t, 32, len(out))
 }
 
 func TestHashPoint(t *testing.T) {
 	p, err := crypto.GenerateKey()
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	ge := hashToCurve(p.Public().(*ecdsa.PublicKey))
-	if ge == nil {
-		t.Error("did not hash point to curve")
-	}
+	require.NotNil(t, ge)
 }

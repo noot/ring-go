@@ -49,6 +49,7 @@ func main() {
 	ok := ring.Verify(sig)
 	if !ok {
 		fmt.Println("failed to verify :(")
+		return
 	}
 
 	fmt.Println("verified signature!")

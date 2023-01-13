@@ -3,78 +3,61 @@ package ring
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
-	"io/ioutil"
 	"reflect"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
+	"github.com/stretchr/testify/require"
 )
 
-func createSig(size int, s int) *RingSig {
-	/* generate new private public keypair */
+func createSig(t *testing.T, size int, idx int) *RingSig {
+	// instantiate private key
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 
-	/* sign message */
+	// generate keyring
+	keyring, err := GenNewKeyRing(size, privkey, idx)
+	require.NoError(t, err)
+
+	// hash message
 	msg := "helloworld"
 	msgHash := sha3.Sum256([]byte(msg))
 
-	/* generate keyring */
-	keyring, err := GenNewKeyRing(size, privkey, s)
-	if err != nil {
-		return nil
-	}
-
-	sig, err := Sign(msgHash, keyring, privkey, s)
-	if err != nil {
-		return nil
-	}
+	// sign message
+	sig, err := Sign(msgHash, keyring, privkey, idx)
+	require.NoError(t, err)
 	return sig
 }
 
 func TestGenNewKeyRing(t *testing.T) {
-	/* generate new private public keypair */
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	/* generate keyring */
 	keyring, err := GenNewKeyRing(2, privkey, 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if keyring == nil || len(keyring) != 2 {
-		t.Error("could not generate keyring of size 2")
-	} else {
-		t.Log("generation of new keyring of size 2 ok")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, keyring)
+	require.Equal(t, 2, len(keyring))
 }
 
 func TestGenNewKeyRing3(t *testing.T) {
-	/* generate new private public keypair */
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	/* generate keyring */
 	keyring, err := GenNewKeyRing(3, privkey, 1)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
+	require.NotNil(t, keyring)
+	require.Equal(t, 3, len(keyring))
+}
 
-	if keyring == nil || len(keyring) != 3 {
-		t.Error("could not generate keyring of size 3")
-	} else {
-		t.Log("generation of new keyring of size 3 ok")
-	}
+func TestGenNewKeyRing_IdxOutOfBounds(t *testing.T) {
+	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+	_, err := GenNewKeyRing(2, privkey, 3)
+	require.Error(t, err)
 }
 
 func TestGenKeyRing(t *testing.T) {
-	/* generate new private public keypair */
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 
 	s := 0
 	size := 3
 
-	/* generate some pubkeys */
+	// generate some pubkeys for the keyring
 	pubkeys := make([]*ecdsa.PublicKey, size)
 	for i := 0; i < size; i++ {
 		priv, err := crypto.GenerateKey()
@@ -86,326 +69,132 @@ func TestGenKeyRing(t *testing.T) {
 		pubkeys[i] = pub.(*ecdsa.PublicKey)
 	}
 
-	/* generate keyring */
 	keyring, err := GenKeyRing(pubkeys, privkey, s)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if keyring == nil || len(keyring) != size+1 {
-		t.Error("could not generate keyring of size 4")
-	} else if keyring[s].X.Cmp(privkey.Public().(*ecdsa.PublicKey).X) != 0 {
-		t.Error("secret index in ring is not signer")
-	} else {
-		t.Log("generation of new keyring of size 4 ok")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, keyring)
+	require.Equal(t, size+1, len(keyring))
+	require.Equal(t, keyring[s].X, privkey.Public().(*ecdsa.PublicKey).X)
 }
 
 func TestGenKeyImage(t *testing.T) {
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
 	image := genKeyImage(privkey)
-
-	if image == nil {
-		t.Error("could not generate key image")
-	}
+	require.NotNil(t, image)
 }
 
 func TestSign(t *testing.T) {
-	/* generate new private public keypair */
-	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	/* sign message */
-	msg := "helloworld"
-	msgHash := sha3.Sum256([]byte(msg))
-
-	/* generate keyring */
-	keyring, err := GenNewKeyRing(2, privkey, 0)
-	if err != nil {
-		t.Error(err)
-	}
-
-	sig, err := Sign(msgHash, keyring, privkey, 0)
-	if err != nil {
-		t.Error("error when signing with ring size of 2")
-	} else {
-		t.Log("signing ok with ring size of 2")
-		t.Log(sig)
-	}
+	createSig(t, 9, 0)
 }
 
 func TestSignAgain(t *testing.T) {
-	/* generate new private public keypair */
-	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	/* sign message */
-	msg := "helloworld"
-	msgHash := sha3.Sum256([]byte(msg))
-
-	/* generate keyring */
-	keyring, err := GenNewKeyRing(100, privkey, 17)
-	if err != nil {
-		t.Error(err)
-	}
-
-	sig, err := Sign(msgHash, keyring, privkey, 17)
-	if err != nil {
-		t.Error("error when signing with ring size of 100")
-	} else {
-		t.Log("signing ok with ring size of 100")
-		t.Log(sig)
-	}
+	createSig(t, 100, 17)
 }
 
 func TestVerify(t *testing.T) {
-	sig := createSig(5, 4)
-	if sig == nil {
-		t.Error("signing error")
-	}
-	/* verify signature */
-	ver := Verify(sig)
-	if !ver {
-		t.Error("verified? false")
-	}
+	sig := createSig(t, 5, 4)
+	require.True(t, Verify(sig))
 }
 
 func TestVerifyFalse(t *testing.T) {
-	sig := createSig(5, 2)
-	if sig == nil {
-		t.Error("signing error")
-	}
+	sig := createSig(t, 5, 2)
+
+	// alter signature
 	curve := sig.Ring[0].Curve
 	sig.C, _ = rand.Int(rand.Reader, curve.Params().P)
-	/* verify signature */
-	ver := Verify(sig)
-	if ver {
-		t.Error("verified? true")
-	}
+	require.False(t, Verify(sig))
 }
 
 func TestVerifyWrongMessage(t *testing.T) {
-	sig := createSig(5, 1)
-	if sig == nil {
-		t.Error("signing error")
-	}
-
-	msg := "noot"
-	msgHash := sha3.Sum256([]byte(msg))
+	sig := createSig(t, 5, 1)
+	msgHash := sha3.Sum256([]byte("noot"))
 	sig.M = msgHash
-
-	/* verify signature */
-	ver := Verify(sig)
-	if ver {
-		t.Error("verified? true")
-	}
+	require.False(t, Verify(sig))
 }
 
 func TestLinkabilityTrue(t *testing.T) {
-	/* generate new private public keypair */
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	/* sign message */
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
 
-	/* generate keyring */
 	keyring1, err := GenNewKeyRing(2, privkey, 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	sig1, err := Sign(msgHash1, keyring1, privkey, 0)
-	if err != nil {
-		t.Error("error when signing with ring size of 2")
-	} else {
-		t.Log("signing ok with ring size of 2")
-		t.Log(sig1)
-		spew.Dump(sig1.I)
-	}
+	require.NoError(t, err)
 
-	/* sign message */
 	msg2 := "hello world"
 	msgHash2 := sha3.Sum256([]byte(msg2))
 
-	/* generate keyring */
 	keyring2, err := GenNewKeyRing(2, privkey, 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	sig2, err := Sign(msgHash2, keyring2, privkey, 0)
-	if err != nil {
-		t.Error("error when signing with ring size of 2")
-	} else {
-		t.Log("signing ok with ring size of 2")
-		t.Log(sig2)
-	}
-
-	link := Link(sig1, sig2)
-	if link {
-		t.Log("the signatures are linkable")
-	} else {
-		t.Error("linkable? false")
-	}
+	require.NoError(t, err)
+	require.True(t, Link(sig1, sig2))
 }
 
 func TestLinkabilityFalse(t *testing.T) {
-	/* generate new private public keypair */
 	privkey1, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-
-	/* sign message */
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
 
-	/* generate keyring */
 	keyring1, err := GenNewKeyRing(2, privkey1, 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	sig1, err := Sign(msgHash1, keyring1, privkey1, 0)
-	if err != nil {
-		t.Error("error when signing with ring size of 2")
-	} else {
-		t.Log("signing ok with ring size of 2")
-		t.Log(sig1)
-		spew.Dump(sig1.I)
-	}
+	require.NoError(t, err)
 
 	privkey2, _ := crypto.HexToECDSA("01ad23ee4fbabbcf31dda1270154a623f5f7c07433193ff07395b33ac5bf2bea")
-	/* sign message */
 	msg2 := "hello world"
 	msgHash2 := sha3.Sum256([]byte(msg2))
 
-	/* generate keyring */
 	keyring2, err := GenNewKeyRing(2, privkey2, 0)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	sig2, err := Sign(msgHash2, keyring2, privkey2, 0)
-	if err != nil {
-		t.Error("error when signing with ring size of 2")
-	} else {
-		t.Log("signing ok with ring size of 2")
-		t.Log(sig2)
+	require.NoError(t, err)
+	require.False(t, Link(sig1, sig2))
+}
+
+func testSerializeAndDeserialize(t *testing.T, size, idx int) {
+	privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
+	require.NoError(t, err)
+
+	msgHash := sha3.Sum256([]byte("helloworld"))
+
+	keyring, err := GenNewKeyRing(size, privkey, idx)
+	require.NoError(t, err)
+
+	sig, err := Sign(msgHash, keyring, privkey, idx)
+	require.NoError(t, err)
+
+	byteSig, err := sig.Serialize()
+	require.NoError(t, err)
+
+	expectedLength := 32*(3*sig.Size+4)+8
+	require.Equal(t, expectedLength, len(byteSig))
+
+	res, err := Deserialize(byteSig)
+	require.NoError(t, err)
+
+	ok := reflect.DeepEqual(res.S, sig.S) &&
+		reflect.DeepEqual(res.Size, sig.Size) &&
+		reflect.DeepEqual(res.C, sig.C) &&
+		reflect.DeepEqual(res.M, sig.M) &&
+		reflect.DeepEqual(res.I, sig.I)
+
+	for i := 0; i < sig.Size; i++ {
+		ok = ok && reflect.DeepEqual(res.Ring[i].X, sig.Ring[i].X)
+		ok = ok && reflect.DeepEqual(res.Ring[i].Y, sig.Ring[i].Y)
 	}
 
-	link := Link(sig1, sig2)
-	if !link {
-		t.Log("signatures signed with different private keys are not linkable")
-	} else {
-		t.Error("linkable? true")
-	}
+	require.True(t, ok)
 }
 
 func TestSerializeAndDeserialize(t *testing.T) {
-	/* generate new private public keypair */
-	privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	/* sign message */
-	file, err := ioutil.ReadFile("./message.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	msgHash := sha3.Sum256(file)
-
-	/* secret index */
-	s := 7
-
-	/* generate keyring */
-	keyring, err := GenNewKeyRing(17, privkey, s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig, err := Sign(msgHash, keyring, privkey, s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	byteSig, err := sig.Serialize()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(byteSig) != 32*(3*sig.Size+4)+8 {
-		t.Fatal("incorrect signature length")
-	}
-
-	marshal_sig, err := Deserialize(byteSig)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	marshal_ok := reflect.DeepEqual(marshal_sig.S, sig.S) &&
-		reflect.DeepEqual(marshal_sig.Size, sig.Size) &&
-		reflect.DeepEqual(marshal_sig.C, sig.C) &&
-		reflect.DeepEqual(marshal_sig.M, sig.M) &&
-		reflect.DeepEqual(marshal_sig.I, sig.I)
-
-	for i := 0; i < sig.Size; i++ {
-		marshal_ok = marshal_ok && reflect.DeepEqual(marshal_sig.Ring[i].X, sig.Ring[i].X)
-		marshal_ok = marshal_ok && reflect.DeepEqual(marshal_sig.Ring[i].Y, sig.Ring[i].Y)
-	}
-
-	if !marshal_ok {
-		t.Fatal("did not marshal to correct sig")
-	}
+	testSerializeAndDeserialize(t, 17, 7)
 }
 
 func TestSerializeAndDeserializeAgain(t *testing.T) {
-	privkey, err := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	file, err := ioutil.ReadFile("./message.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	msgHash := sha3.Sum256(file)
-
-	s := 9
-	keyring, err := GenNewKeyRing(100, privkey, s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sig, err := Sign(msgHash, keyring, privkey, s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	byteSig, err := sig.Serialize()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(byteSig) != 32*(3*sig.Size+4)+8 {
-		t.Fatal("incorrect signature length")
-	}
-
-	marshal_sig, err := Deserialize(byteSig)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	marshal_ok := reflect.DeepEqual(marshal_sig.S, sig.S) &&
-		reflect.DeepEqual(marshal_sig.Size, sig.Size) &&
-		reflect.DeepEqual(marshal_sig.C, sig.C) &&
-		reflect.DeepEqual(marshal_sig.M, sig.M) &&
-		reflect.DeepEqual(marshal_sig.I, sig.I)
-
-	for i := 0; i < sig.Size; i++ {
-		marshal_ok = marshal_ok && reflect.DeepEqual(marshal_sig.Ring[i].X, sig.Ring[i].X)
-		marshal_ok = marshal_ok && reflect.DeepEqual(marshal_sig.Ring[i].Y, sig.Ring[i].Y)
-	}
-
-	if !marshal_ok {
-		t.Fatal("did not marshal to correct sig")
-	}
+	testSerializeAndDeserialize(t, 100, 9)
 }
