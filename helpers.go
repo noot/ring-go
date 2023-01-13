@@ -2,18 +2,12 @@ package ring
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
 )
-
-// helper function, returns type of v
-func typeof(v interface{}) string {
-	return fmt.Sprintf("%T", v)
-}
 
 func padTo32Bytes(in []byte) (out []byte) {
 	out = append(out, in...)

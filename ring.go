@@ -15,8 +15,10 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+// Ring represents a group of public keys such that one of the group created a signature.
 type Ring []*ecdsa.PublicKey
 
+// RingSig represents a ring signature.
 type RingSig struct {
 	Size  int              // size of ring
 	M     [32]byte         // message
@@ -27,7 +29,7 @@ type RingSig struct {
 	Curve elliptic.Curve
 }
 
-// bytes returns the public key ring as a byte slice.
+// Bytes returns the public key ring as a byte slice.
 func (r Ring) Bytes() (b []byte) {
 	for _, pub := range r {
 		b = append(b, pub.X.Bytes()...)
@@ -36,8 +38,7 @@ func (r Ring) Bytes() (b []byte) {
 	return
 }
 
-// converts the signature to a byte array
-// this is the format that will be used when passing EVM bytecode
+// Serialize converts the signature to a byte array.
 func (r *RingSig) Serialize() ([]byte, error) {
 	sig := []byte{}
 	// add size and message
@@ -65,7 +66,7 @@ func (r *RingSig) Serialize() ([]byte, error) {
 	return sig, nil
 }
 
-// deserializes the byteified signature into a RingSig struct
+// Deserialize the byteified signature into a *RingSig.
 func Deserialize(r []byte) (*RingSig, error) {
 	sig := new(RingSig)
 	size := r[0:8]
@@ -121,30 +122,31 @@ func Deserialize(r []byte) (*RingSig, error) {
 	return sig, nil
 }
 
-// takes public key ring and places the public key corresponding to `privkey` in index s of the ring
-// returns a key ring of type []*ecdsa.PublicKey
-func GenKeyRing(ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicKey, error) {
+// GenKeyRing takes public key ring and places the public key corresponding to `privkey`
+// in index s of the ring.
+// It returns a ring of public keys of length `len(ring)+1`.
+func GenKeyRing(ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) (Ring, error) {
 	size := len(ring) + 1
-	new_ring := make([]*ecdsa.PublicKey, size)
+	newRing := make([]*ecdsa.PublicKey, size)
 	pubkey := privkey.Public().(*ecdsa.PublicKey)
 
 	if s > len(ring) {
 		return nil, errors.New("index s out of bounds")
 	}
 
-	new_ring[s] = pubkey
+	newRing[s] = pubkey
 	for i := 1; i < size; i++ {
 		idx := (i + s) % size
-		new_ring[idx] = ring[i-1]
+		newRing[idx] = ring[i-1]
 	}
 
-	return new_ring, nil
+	return newRing, nil
 }
 
-// creates a ring with size specified by `size` and places the public key corresponding to `privkey`
-// in index s of the ring.
-// returns a new key ring of type []*ecdsa.PublicKey
-func GenNewKeyRing(size int, privkey *ecdsa.PrivateKey, s int) ([]*ecdsa.PublicKey, error) {
+// NewKeyRing creates a ring with size specified by `size` and places the public key corresponding
+// to `privkey` in index s of the ring.
+// It returns a ring of public keys of length `size`.
+func NewKeyRing(size int, privkey *ecdsa.PrivateKey, s int) (Ring, error) {
 	ring := make([]*ecdsa.PublicKey, size)
 	pubkey := privkey.Public().(*ecdsa.PublicKey)
 
@@ -187,12 +189,12 @@ func genKeyImage(privkey *ecdsa.PrivateKey) *ecdsa.PublicKey {
 	return image
 }
 
-// create ring signature from list of public keys given inputs:
+// Sign creates a ring signature from list of public keys given inputs:
 // msg: byte array, message to be signed
 // ring: array of *ecdsa.PublicKeys to be included in the ring
 // privkey: *ecdsa.PrivateKey of signer
 // s: index of signer in ring
-func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int) (*RingSig, error) {
+func Sign(m [32]byte, ring Ring, privkey *ecdsa.PrivateKey, s int) (*RingSig, error) {
 	// check ringsize > 1
 	ringsize := len(ring)
 	if ringsize < 2 {
@@ -258,10 +260,10 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 		}
 
 		if curve == nil {
-			return nil, errors.New(fmt.Sprintf("No curve at index %d", idx))
+			return nil, fmt.Errorf("no curve at index %d", idx)
 		}
 		if ring[idx] == nil {
-			return nil, errors.New(fmt.Sprintf("No public key at index %d", idx))
+			return nil, fmt.Errorf("no public key at index %d", idx)
 		}
 
 		// calculate L_i = s_i*G + c_i*P_i
@@ -320,8 +322,8 @@ func Sign(m [32]byte, ring []*ecdsa.PublicKey, privkey *ecdsa.PrivateKey, s int)
 	return sig, nil
 }
 
-// verify ring signature contained in RingSig struct
-// returns true if a valid signature, false otherwise
+// Verify the ring signature contained in RingSig struct.
+// returns true if a valid signature, false otherwise.
 func Verify(sig *RingSig) bool {
 	// setup
 	ring := sig.Ring
@@ -361,6 +363,8 @@ func Verify(sig *RingSig) bool {
 	return bytes.Equal(sig.C.Bytes(), C[0].Bytes())
 }
 
+// Link returns true if the two signatures were created by the same signer,
+// false otherwise.
 func Link(sig_a *RingSig, sig_b *RingSig) bool {
 	return sig_a.I.X.Cmp(sig_b.I.X) == 0 && sig_a.I.Y.Cmp(sig_b.I.Y) == 0
 }

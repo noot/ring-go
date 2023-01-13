@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"golang.org/x/crypto/sha3"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 )
 
 func createSig(t *testing.T, size int, idx int) *RingSig {
@@ -16,7 +16,7 @@ func createSig(t *testing.T, size int, idx int) *RingSig {
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
 
 	// generate keyring
-	keyring, err := GenNewKeyRing(size, privkey, idx)
+	keyring, err := NewKeyRing(size, privkey, idx)
 	require.NoError(t, err)
 
 	// hash message
@@ -29,25 +29,25 @@ func createSig(t *testing.T, size int, idx int) *RingSig {
 	return sig
 }
 
-func TestGenNewKeyRing(t *testing.T) {
+func TestNewKeyRing(t *testing.T) {
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-	keyring, err := GenNewKeyRing(2, privkey, 0)
+	keyring, err := NewKeyRing(2, privkey, 0)
 	require.NoError(t, err)
 	require.NotNil(t, keyring)
 	require.Equal(t, 2, len(keyring))
 }
 
-func TestGenNewKeyRing3(t *testing.T) {
+func TestNewKeyRing3(t *testing.T) {
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-	keyring, err := GenNewKeyRing(3, privkey, 1)
+	keyring, err := NewKeyRing(3, privkey, 1)
 	require.NoError(t, err)
 	require.NotNil(t, keyring)
 	require.Equal(t, 3, len(keyring))
 }
 
-func TestGenNewKeyRing_IdxOutOfBounds(t *testing.T) {
+func TestNewKeyRing_IdxOutOfBounds(t *testing.T) {
 	privkey, _ := crypto.HexToECDSA("358be44145ad16a1add8622786bef07e0b00391e072855a5667eb3c78b9d3803")
-	_, err := GenNewKeyRing(2, privkey, 3)
+	_, err := NewKeyRing(2, privkey, 3)
 	require.Error(t, err)
 }
 
@@ -116,7 +116,7 @@ func TestLinkabilityTrue(t *testing.T) {
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
 
-	keyring1, err := GenNewKeyRing(2, privkey, 0)
+	keyring1, err := NewKeyRing(2, privkey, 0)
 	require.NoError(t, err)
 
 	sig1, err := Sign(msgHash1, keyring1, privkey, 0)
@@ -125,7 +125,7 @@ func TestLinkabilityTrue(t *testing.T) {
 	msg2 := "hello world"
 	msgHash2 := sha3.Sum256([]byte(msg2))
 
-	keyring2, err := GenNewKeyRing(2, privkey, 0)
+	keyring2, err := NewKeyRing(2, privkey, 0)
 	require.NoError(t, err)
 
 	sig2, err := Sign(msgHash2, keyring2, privkey, 0)
@@ -138,7 +138,7 @@ func TestLinkabilityFalse(t *testing.T) {
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
 
-	keyring1, err := GenNewKeyRing(2, privkey1, 0)
+	keyring1, err := NewKeyRing(2, privkey1, 0)
 	require.NoError(t, err)
 
 	sig1, err := Sign(msgHash1, keyring1, privkey1, 0)
@@ -148,7 +148,7 @@ func TestLinkabilityFalse(t *testing.T) {
 	msg2 := "hello world"
 	msgHash2 := sha3.Sum256([]byte(msg2))
 
-	keyring2, err := GenNewKeyRing(2, privkey2, 0)
+	keyring2, err := NewKeyRing(2, privkey2, 0)
 	require.NoError(t, err)
 
 	sig2, err := Sign(msgHash2, keyring2, privkey2, 0)
@@ -162,7 +162,7 @@ func testSerializeAndDeserialize(t *testing.T, size, idx int) {
 
 	msgHash := sha3.Sum256([]byte("helloworld"))
 
-	keyring, err := GenNewKeyRing(size, privkey, idx)
+	keyring, err := NewKeyRing(size, privkey, idx)
 	require.NoError(t, err)
 
 	sig, err := Sign(msgHash, keyring, privkey, idx)
@@ -171,7 +171,7 @@ func testSerializeAndDeserialize(t *testing.T, size, idx int) {
 	byteSig, err := sig.Serialize()
 	require.NoError(t, err)
 
-	expectedLength := 32*(3*sig.Size+4)+8
+	expectedLength := 32*(3*sig.Size+4) + 8
 	require.Equal(t, expectedLength, len(byteSig))
 
 	res, err := Deserialize(byteSig)

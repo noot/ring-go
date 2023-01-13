@@ -19,7 +19,7 @@ func main() {
 	const size = 16
 	const idx = 7
 
-	keyring, err := ring.GenNewKeyRing(size, privkey, idx)
+	keyring, err := ring.NewKeyRing(size, privkey, idx)
 	if err != nil {
 		panic(err)
 	}
