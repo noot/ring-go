@@ -14,9 +14,8 @@ func main() {
 		panic(err)
 	}
 
-	msg := "helloworld"
-	msgHash := sha3.Sum256([]byte(msg))
-	const size = 16
+	msgHash := sha3.Sum256([]byte("helloworld"))
+	const size = 10
 	const idx = 7
 
 	keyring, err := ring.NewKeyRing(size, privkey, idx)
@@ -24,12 +23,12 @@ func main() {
 		panic(err)
 	}
 
-	sig, err := ring.Sign(msgHash, keyring, privkey, idx)
+	sig, err := keyring.Sign(msgHash, privkey)
 	if err != nil {
 		panic(err)
 	}
 
-	ok := ring.Verify(sig)
+	ok := sig.Verify(msgHash)
 	if !ok {
 		fmt.Println("failed to verify :(")
 		return
