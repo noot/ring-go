@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/athanorlabs/go-dleq/types"
-	"golang.org/x/crypto/sha3"
 )
 
 // Ring represents a group of public keys such that one of the group created a signature.
@@ -16,16 +15,20 @@ type Ring struct {
 }
 
 // Bytes returns the public key ring as a byte slice.
-func (r Ring) Bytes() (b []byte) {
+func (r *Ring) Bytes() (b []byte) {
 	for _, pub := range r.pubkeys {
 		b = append(b, pub.Encode()...)
 	}
 	return
 }
 
+func (r *Ring) Size() int {
+	return len(r.pubkeys)
+}
+
 // RingSig represents a ring signature.
 type RingSig struct {
-	ring  Ring           // array of public keys
+	ring  *Ring          // array of public keys
 	c     types.Scalar   // ring signature challenge
 	s     []types.Scalar // ring signature values
 	image types.Point    // key image
@@ -169,7 +172,7 @@ func genKeyImage(curve types.Curve, privkey types.Scalar) types.Point {
 
 // Sign creates a ring signature on the given message using the public key ring
 // and a private key of one of the members of the ring.
-func (r Ring) Sign(m [32]byte, privkey types.Scalar) (*RingSig, error) {
+func (r *Ring) Sign(m [32]byte, privkey types.Scalar) (*RingSig, error) {
 	ourIdx := -1
 	pubkey := r.curve.ScalarBaseMul(privkey)
 	for i, pk := range r.pubkeys {
@@ -187,13 +190,17 @@ func (r Ring) Sign(m [32]byte, privkey types.Scalar) (*RingSig, error) {
 }
 
 func challenge(curve types.Curve, m [32]byte, l, r types.Point) types.Scalar {
-	c := sha3.Sum256(append(m[:], append(l.Encode(), r.Encode()...)...))
-	return curve.ScalarFromBytes(c)
+	t := append(m[:], append(l.Encode(), r.Encode()...)...)
+	c, err := curve.HashToScalar(t)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
 
 // Sign creates a ring signature on the given message using the provided private key
 // and ring of public keys.
-func Sign(m [32]byte, ring Ring, privkey types.Scalar, ourIdx int) (*RingSig, error) {
+func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, error) {
 	size := len(ring.pubkeys)
 	if size < 2 {
 		return nil, errors.New("size of ring less than two")

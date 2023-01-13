@@ -1,10 +1,9 @@
 package ring
 
 import (
-	"crypto/ecdsa"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/athanorlabs/go-dleq/secp256k1"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,10 +13,9 @@ func TestPadTo32Bytes(t *testing.T) {
 	require.Equal(t, 32, len(out))
 }
 
-func TestHashPoint(t *testing.T) {
-	p, err := crypto.GenerateKey()
-	require.NoError(t, err)
-
-	ge := hashToCurve(p.Public().(*ecdsa.PublicKey))
+func TestHashToCurveSecp256k1(t *testing.T) {
+	curve := secp256k1.NewCurve()
+	privkey := curve.NewRandomScalar()
+	ge := hashToCurveSecp256k1(curve.ScalarBaseMul(privkey).(*secp256k1.PointImpl))
 	require.NotNil(t, ge)
 }
