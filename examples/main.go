@@ -3,22 +3,21 @@ package main
 import (
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	ring "github.com/noot/ring-go"
 	"golang.org/x/crypto/sha3"
 )
 
-func main() {
-	privkey, err := crypto.GenerateKey()
-	if err != nil {
-		panic(err)
-	}
-
+func signAndVerify(curve ring.Curve) {
+	privkey := curve.NewRandomScalar()
 	msgHash := sha3.Sum256([]byte("helloworld"))
-	const size = 10
+
+	// size of the public key ring (anonymity set)
+	const size = 16
+
+	// our hey's secret index within the set
 	const idx = 7
 
-	keyring, err := ring.NewKeyRing(size, privkey, idx)
+	keyring, err := ring.NewKeyRing(curve, size, privkey, idx)
 	if err != nil {
 		panic(err)
 	}
@@ -35,4 +34,11 @@ func main() {
 	}
 
 	fmt.Println("verified signature!")
+}
+
+func main() {
+	fmt.Println("using secp256k1...")
+	signAndVerify(ring.Secp256k1())
+	fmt.Println("using ed25519...")
+	signAndVerify(ring.Ed25519())
 }
