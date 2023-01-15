@@ -3,19 +3,19 @@ package ring
 import (
 	"testing"
 
-	"github.com/athanorlabs/go-dleq/secp256k1"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPadTo32Bytes(t *testing.T) {
-	in := []byte{1, 2, 3, 4, 5}
-	out := padTo32Bytes(in)
-	require.Equal(t, 32, len(out))
+func TestHashToCurveSecp256k1(t *testing.T) {
+	curve := Secp256k1()
+	privkey := curve.NewRandomScalar()
+	p := hashToCurve(curve.ScalarBaseMul(privkey))
+	require.NotNil(t, p)
 }
 
-func TestHashToCurveSecp256k1(t *testing.T) {
-	curve := secp256k1.NewCurve()
+func TestHashToCurveEd25519(t *testing.T) {
+	curve := Ed25519()
 	privkey := curve.NewRandomScalar()
-	ge := hashToCurveSecp256k1(curve.ScalarBaseMul(privkey).(*secp256k1.PointImpl))
-	require.NotNil(t, ge)
+	p := hashToCurve(curve.ScalarBaseMul(privkey))
+	require.NotNil(t, p)
 }

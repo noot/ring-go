@@ -3,11 +3,8 @@ package ring
 import (
 	"crypto/rand"
 	"math/big"
-	"reflect"
 	"testing"
 
-	"github.com/athanorlabs/go-dleq/ed25519"
-	"github.com/athanorlabs/go-dleq/secp256k1"
 	"github.com/athanorlabs/go-dleq/types"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
@@ -15,7 +12,6 @@ import (
 
 var (
 	testMsg = sha3.Sum256([]byte("helloworld"))
-	curve   = secp256k1.NewCurve()
 )
 
 func createSigWithCurve(t *testing.T, curve types.Curve, size int, idx int) *RingSig {
@@ -33,12 +29,12 @@ func createSigWithCurve(t *testing.T, curve types.Curve, size int, idx int) *Rin
 }
 
 func createSig(t *testing.T, size int, idx int) *RingSig {
-	return createSigWithCurve(t, curve, size, idx)
+	return createSigWithCurve(t, Secp256k1(), size, idx)
 }
 
 func TestSign_Loop_Ed25519(t *testing.T) {
 	maxSize := 100
-	curve := ed25519.NewCurve()
+	curve := Ed25519()
 	for i := 2; i < maxSize; i++ {
 		idx, err := rand.Int(rand.Reader, big.NewInt(int64(i)))
 		require.NoError(t, err)
@@ -58,6 +54,7 @@ func TestSign_Loop_Secp256k1(t *testing.T) {
 }
 
 func TestNewKeyRing(t *testing.T) {
+	curve := Secp256k1()
 	privkey := curve.NewRandomScalar()
 	keyring, err := NewKeyRing(curve, 2, privkey, 0)
 	require.NoError(t, err)
@@ -66,6 +63,7 @@ func TestNewKeyRing(t *testing.T) {
 }
 
 func TestNewKeyRing3(t *testing.T) {
+	curve := Secp256k1()
 	privkey := curve.NewRandomScalar()
 	keyring, err := NewKeyRing(curve, 3, privkey, 1)
 	require.NoError(t, err)
@@ -74,12 +72,14 @@ func TestNewKeyRing3(t *testing.T) {
 }
 
 func TestNewKeyRing_IdxOutOfBounds(t *testing.T) {
+	curve := Secp256k1()
 	privkey := curve.NewRandomScalar()
 	_, err := NewKeyRing(curve, 2, privkey, 3)
 	require.Error(t, err)
 }
 
 func TestGenKeyRing(t *testing.T) {
+	curve := Secp256k1()
 	privkey := curve.NewRandomScalar()
 	s := 0
 	size := 3
@@ -98,12 +98,6 @@ func TestGenKeyRing(t *testing.T) {
 	require.True(t, keyring.pubkeys[s].Equals(curve.ScalarBaseMul(privkey)))
 }
 
-func TestGenKeyImage(t *testing.T) {
-	privkey := curve.NewRandomScalar()
-	image := genKeyImage(curve, privkey)
-	require.NotNil(t, image)
-}
-
 func TestSign(t *testing.T) {
 	createSig(t, 9, 0)
 }
@@ -118,6 +112,7 @@ func TestVerify(t *testing.T) {
 }
 
 func TestVerifyFalse(t *testing.T) {
+	curve := Secp256k1()
 	sig := createSig(t, 5, 2)
 
 	// alter signature
@@ -132,6 +127,7 @@ func TestVerifyWrongMessage(t *testing.T) {
 }
 
 func TestLinkabilityTrue(t *testing.T) {
+	curve := Secp256k1()
 	privkey := curve.NewRandomScalar()
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
@@ -154,6 +150,7 @@ func TestLinkabilityTrue(t *testing.T) {
 }
 
 func TestLinkabilityFalse(t *testing.T) {
+	curve := Secp256k1()
 	privkey1 := curve.NewRandomScalar()
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
@@ -174,45 +171,4 @@ func TestLinkabilityFalse(t *testing.T) {
 	sig2, err := keyring2.Sign(msgHash2, privkey2)
 	require.NoError(t, err)
 	require.False(t, Link(sig1, sig2))
-}
-
-func testSerializeAndDeserialize(t *testing.T, size, idx int) {
-	t.Skip()
-	privkey := curve.NewRandomScalar()
-	msgHash := sha3.Sum256([]byte("helloworld"))
-
-	keyring, err := NewKeyRing(curve, size, privkey, idx)
-	require.NoError(t, err)
-
-	sig, err := Sign(msgHash, keyring, privkey, idx)
-	require.NoError(t, err)
-
-	byteSig, err := sig.Serialize()
-	require.NoError(t, err)
-
-	expectedLength := 32*(3*sig.ring.Size()+3) + 8
-	require.Equal(t, expectedLength, len(byteSig))
-
-	res := new(RingSig)
-	err = res.Deserialize(byteSig)
-	require.NoError(t, err)
-
-	ok := reflect.DeepEqual(res.s, sig.s) &&
-		reflect.DeepEqual(res.ring.Size(), sig.ring.Size()) &&
-		reflect.DeepEqual(res.c, sig.c) &&
-		reflect.DeepEqual(res.image, sig.image)
-
-	for i := 0; i < sig.ring.Size(); i++ {
-		ok = ok && res.ring.pubkeys[i].Equals(sig.ring.pubkeys[i])
-	}
-
-	require.True(t, ok)
-}
-
-func TestSerializeAndDeserialize(t *testing.T) {
-	testSerializeAndDeserialize(t, 17, 7)
-}
-
-func TestSerializeAndDeserializeAgain(t *testing.T) {
-	testSerializeAndDeserialize(t, 100, 9)
 }

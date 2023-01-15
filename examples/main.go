@@ -10,7 +10,11 @@ import (
 func signAndVerify(curve ring.Curve) {
 	privkey := curve.NewRandomScalar()
 	msgHash := sha3.Sum256([]byte("helloworld"))
-	const size = 10
+
+	// size of the public key ring (anonymity set)
+	const size = 16
+
+	// our hey's secret index within the set
 	const idx = 7
 
 	keyring, err := ring.NewKeyRing(curve, size, privkey, idx)

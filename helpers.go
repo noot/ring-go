@@ -12,16 +12,6 @@ import (
 	"github.com/athanorlabs/go-dleq/types"
 )
 
-func padTo32Bytes(in []byte) (out []byte) {
-	out = append(out, in...)
-	for {
-		if len(out) == 32 {
-			return
-		}
-		out = append([]byte{0}, out...)
-	}
-}
-
 func hashToCurve(pk types.Point) types.Point {
 	switch k := pk.(type) {
 	case *ed25519.PointImpl:

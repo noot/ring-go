@@ -1,7 +1,6 @@
 package ring
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -14,14 +13,7 @@ type Ring struct {
 	curve   types.Curve
 }
 
-// Bytes returns the public key ring as a byte slice.
-func (r *Ring) Bytes() (b []byte) {
-	for _, pub := range r.pubkeys {
-		b = append(b, pub.Encode()...)
-	}
-	return
-}
-
+// Size returns the size of the ring, ie. the number of public keys in it.
 func (r *Ring) Size() int {
 	return len(r.pubkeys)
 }
@@ -41,78 +33,6 @@ func (r *RingSig) PublicKeys() []types.Point {
 		ret[i] = pk.Copy()
 	}
 	return ret
-}
-
-// Serialize converts the signature to a byte array.
-func (r *RingSig) Serialize() ([]byte, error) {
-	sig := []byte{}
-	size := len(r.ring.pubkeys)
-
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(size))
-	sig = append(sig, b[:]...)                       // 8 bytes
-	sig = append(sig, padTo32Bytes(r.c.Encode())...) // 32 bytes
-
-	// 96 bytes each iteration
-	// TODO: now 97 bytes?
-	for i := 0; i < size; i++ {
-		sig = append(sig, padTo32Bytes(r.s[i].Encode())...)
-		sig = append(sig, padTo32Bytes(r.ring.pubkeys[i].Encode())...)
-	}
-
-	// 64 bytes
-	sig = append(sig, padTo32Bytes(r.image.Encode())...)
-
-	if len(sig) != 32*(3*size+3)+8 {
-		return nil, errors.New("failed to serialize ring signature")
-	}
-
-	return sig, nil
-}
-
-// Deserialize the byteified signature into a *RingSig.
-func (sig *RingSig) Deserialize(r []byte) error {
-	// TODO: rewrite this func to use a bytes.Buffer internally
-	// if len(r) < 72 {
-	// 	return errors.New("incorrect ring size")
-	// }
-
-	// sizeBytes := r[0:8]
-	// size := binary.BigEndian.Uint64(sizeBytes)
-	// sig.c = new(big.Int).SetBytes(r[8:40])
-
-	// bytelen := size * 96
-	// if uint64(len(r)) < bytelen+104 {
-	// 	return errors.New("input is too short")
-	// }
-
-	// j := 0
-	// sig.s = make([]*big.Int, size)
-	// sig.ring = make([]*ecdsa.PublicKey, size)
-
-	// for i := uint64(40); i < bytelen; i += 96 {
-	// 	s_i := r[i : i+32]
-	// 	x_i := r[i+32 : i+64]
-	// 	y_i := r[i+64 : i+96]
-
-	// 	sig.s[j] = new(big.Int).SetBytes(s_i)
-	// 	sig.ring[j] = &ecdsa.PublicKey{
-	// 		Curve: secp256k1.S256(),
-	// 	}
-	// 	sig.ring[j].X = new(big.Int).SetBytes(x_i)
-	// 	sig.ring[j].Y = new(big.Int).SetBytes(y_i)
-	// 	sig.ring[j].Curve = crypto.S256()
-	// 	j++
-	// }
-
-	// sig.image = &ecdsa.PublicKey{
-	// 	Curve: secp256k1.S256(),
-	// 	X:     new(big.Int).SetBytes(r[bytelen+40 : bytelen+72]),
-	// 	Y:     new(big.Int).SetBytes(r[bytelen+72 : bytelen+104]),
-	// }
-
-	// sig.curve = crypto.S256()
-	return nil
 }
 
 // NewKeyRingFromPublicKeys takes public key ring and places the public key corresponding to `privkey`
@@ -163,13 +83,6 @@ func NewKeyRing(curve types.Curve, size int, privkey types.Scalar, idx int) (*Ri
 	}, nil
 }
 
-// calculate key image I = x * H_p(P) where H_p is a hash-to-curve function
-func genKeyImage(curve types.Curve, privkey types.Scalar) types.Point {
-	pubkey := curve.ScalarBaseMul(privkey)
-	h := hashToCurve(pubkey)
-	return curve.ScalarMul(privkey, h)
-}
-
 // Sign creates a ring signature on the given message using the public key ring
 // and a private key of one of the members of the ring.
 func (r *Ring) Sign(m [32]byte, privkey types.Scalar) (*RingSig, error) {
@@ -187,15 +100,6 @@ func (r *Ring) Sign(m [32]byte, privkey types.Scalar) (*RingSig, error) {
 	}
 
 	return Sign(m, r, privkey, ourIdx)
-}
-
-func challenge(curve types.Curve, m [32]byte, l, r types.Point) types.Scalar {
-	t := append(m[:], append(l.Encode(), r.Encode()...)...)
-	c, err := curve.HashToScalar(t)
-	if err != nil {
-		panic(err)
-	}
-	return c
 }
 
 // Sign creates a ring signature on the given message using the provided private key
@@ -220,7 +124,8 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 	curve := ring.curve
 	h := hashToCurve(pubkey)
 	sig := &RingSig{
-		ring:  ring,
+		ring: ring,
+		// calculate key image I = x * H_p(P) where H_p is a hash-to-curve function
 		image: curve.ScalarMul(privkey, h),
 	}
 
@@ -337,4 +242,14 @@ func (sig *RingSig) Verify(m [32]byte) bool {
 // false otherwise.
 func Link(sigA, sigB *RingSig) bool {
 	return sigA.image.Equals(sigB.image)
+}
+
+func challenge(curve types.Curve, m [32]byte, l, r types.Point) types.Scalar {
+	t := append(m[:], append(l.Encode(), r.Encode()...)...)
+	c, err := curve.HashToScalar(t)
+	if err != nil {
+		// this should not happen
+		panic(err)
+	}
+	return c
 }
