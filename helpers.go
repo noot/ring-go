@@ -2,6 +2,8 @@ package ring
 
 import (
 	"filippo.io/edwards25519"
+	"filippo.io/edwards25519/field"
+	"fmt"
 	dsecp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"golang.org/x/crypto/sha3"
 
@@ -34,19 +36,62 @@ func hashToCurve(pk types.Point) types.Point {
 func hashToCurveEd25519(pk *ed25519.PointImpl) *ed25519.PointImpl {
 	const safety = 128
 	compressedKey := pk.Encode()
-	hash := sha3.Sum256(compressedKey)
+	hash := sha3.Sum512(compressedKey)
 
 	for i := 0; i < safety; i++ {
-		hash[31] |= byte(1 << 7)
-		p, err := new(edwards25519.Point).SetBytes(hash[:])
-		if err == nil && p.Equal(edwards25519.NewIdentityPoint()) == 0 {
-			return ed25519.NewPoint(p)
+		x, err := new(field.Element).SetWideBytes(hash[:])
+		if err != nil {
+			panic(err) // this shouldn't happen
 		}
 
-		hash = sha3.Sum256(hash[:])
+		point, err := decompressYEd25519(x)
+		if err == nil {
+			return point
+		} else {
+			fmt.Println(err)
+		}
+
+		hash = sha3.Sum512(hash[:])
 	}
 
 	panic("failed to hash ed25519 point to curve")
+}
+
+// see https://crypto.stackexchange.com/questions/101961/find-ed25519-y-coordinate-from-x-coordinate
+func decompressYEd25519(x *field.Element) (*ed25519.PointImpl, error) {
+	// y^2 = (1 + x^2) / (1 + d*(x^2)) where d = 121665/121666
+	one := new(field.Element).One()
+	xSq := new(field.Element).Square(x)
+
+	// d*x^2
+	dd := new(field.Element).Mult32(one, 121666)
+	dd = new(field.Element).Invert(dd)
+	dxSq := new(field.Element).Mult32(xSq, 121665)
+	dxSq = new(field.Element).Multiply(dxSq, dd)
+
+	// (1 + d*x^2)^-1
+	denom := new(field.Element).Add(one, dxSq)
+	denom = new(field.Element).Invert(denom)
+
+	// 1 + x^2
+	num := new(field.Element).Add(one, xSq)
+
+	// find y
+	y, wasSquare := new(field.Element).SqrtRatio(num, denom)
+	if wasSquare != 1 {
+		return nil, fmt.Errorf("failed to decompress Y")
+	}
+
+	var out [32]byte
+	copy(out[:], y.Bytes())
+	out[31] |= byte(x.IsNegative() << 7)
+
+	point, err := new(edwards25519.Point).SetBytes(out[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return ed25519.NewPoint(point), nil
 }
 
 // based off https://github.com/particl/particl-core/blob/master/src/secp256k1/src/modules/mlsag/main_impl.h#L139
