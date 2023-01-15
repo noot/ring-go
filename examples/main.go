@@ -3,13 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/athanorlabs/go-dleq/secp256k1"
 	ring "github.com/noot/ring-go"
 	"golang.org/x/crypto/sha3"
 )
 
-func main() {
-	curve := secp256k1.NewCurve()
+func signAndVerify(curve ring.Curve) {
 	privkey := curve.NewRandomScalar()
 	msgHash := sha3.Sum256([]byte("helloworld"))
 	const size = 10
@@ -32,4 +30,11 @@ func main() {
 	}
 
 	fmt.Println("verified signature!")
+}
+
+func main() {
+	fmt.Println("using secp256k1...")
+	signAndVerify(ring.Secp256k1())
+	fmt.Println("using ed25519...")
+	signAndVerify(ring.Ed25519())
 }
