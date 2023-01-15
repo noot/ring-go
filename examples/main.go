@@ -14,7 +14,7 @@ func signAndVerify(curve ring.Curve) {
 	// size of the public key ring (anonymity set)
 	const size = 16
 
-	// our hey's secret index within the set
+	// our key's secret index within the set
 	const idx = 7
 
 	keyring, err := ring.NewKeyRing(curve, size, privkey, idx)
