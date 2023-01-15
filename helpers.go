@@ -33,7 +33,36 @@ func hashToCurve(pk types.Point) types.Point {
 	}
 }
 
+// hashToCurveEd25519 hashes a point and attempts to set the hash to a point.
+// It's effectively hashing to a y-coordinate, as an encoded ed25519 point
+// is the y-coordinate with the highest bit set for whether x is positive/negative.
+// It repeatedly hashes the hash until it finds a valid point.
 func hashToCurveEd25519(pk *ed25519.PointImpl) *ed25519.PointImpl {
+	const safety = 128
+	compressedKey := pk.Encode()
+	hash := sha3.Sum256(compressedKey)
+
+	for i := 0; i < safety; i++ {
+		point, err := new(edwards25519.Point).SetBytes(hash[:])
+		if err == nil {
+			return ed25519.NewPoint(
+				new(edwards25519.Point).MultByCofactor(point),
+			)
+		}
+
+		hash = sha3.Sum256(hash[:])
+	}
+
+	panic("failed to hash ed25519 point to curve")
+}
+
+// hashToCurveEd25519Alt hashes a point to a x-coordinate and attempts to find a
+// corresponding y-coordinate. It repeatedly hashes the hash until it finds a valid point.
+//
+// this is slightly slower than hashToCurveEd25519.
+// I *think* they're effectively the same security-wise, as this impl hashes to an x-coordinate,
+// and the above hashes to a y-coordinate.
+func hashToCurveEd25519Alt(pk *ed25519.PointImpl) *ed25519.PointImpl { //nolint:deadcode,unused
 	const safety = 128
 	compressedKey := pk.Encode()
 	hash := sha3.Sum512(compressedKey)
@@ -47,8 +76,6 @@ func hashToCurveEd25519(pk *ed25519.PointImpl) *ed25519.PointImpl {
 		point, err := decompressYEd25519(x)
 		if err == nil {
 			return point
-		} else {
-			fmt.Println(err)
 		}
 
 		hash = sha3.Sum512(hash[:])
@@ -58,7 +85,7 @@ func hashToCurveEd25519(pk *ed25519.PointImpl) *ed25519.PointImpl {
 }
 
 // see https://crypto.stackexchange.com/questions/101961/find-ed25519-y-coordinate-from-x-coordinate
-func decompressYEd25519(x *field.Element) (*ed25519.PointImpl, error) {
+func decompressYEd25519(x *field.Element) (*ed25519.PointImpl, error) { //nolint:unused
 	// y^2 = (1 + x^2) / (1 + d*(x^2)) where d = 121665/121666
 	one := new(field.Element).One()
 	xSq := new(field.Element).Square(x)
@@ -91,7 +118,9 @@ func decompressYEd25519(x *field.Element) (*ed25519.PointImpl, error) {
 		return nil, err
 	}
 
-	return ed25519.NewPoint(point), nil
+	return ed25519.NewPoint(
+		new(edwards25519.Point).MultByCofactor(point),
+	), nil
 }
 
 // based off https://github.com/particl/particl-core/blob/master/src/secp256k1/src/modules/mlsag/main_impl.h#L139
