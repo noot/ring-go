@@ -14,7 +14,7 @@ var (
 	testMsg = sha3.Sum256([]byte("helloworld"))
 )
 
-func createSigWithCurve(t *testing.T, curve types.Curve, size int, idx int) *RingSig {
+func createSigWithCurve(t *testing.T, curve types.Curve, size, idx int) *RingSig {
 	// instantiate private key
 	privkey := curve.NewRandomScalar()
 
@@ -28,7 +28,7 @@ func createSigWithCurve(t *testing.T, curve types.Curve, size int, idx int) *Rin
 	return sig
 }
 
-func createSig(t *testing.T, size int, idx int) *RingSig {
+func createSig(t *testing.T, size, idx int) *RingSig {
 	return createSigWithCurve(t, Secp256k1(), size, idx)
 }
 
