@@ -64,7 +64,7 @@ func NewFixedKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point) (*R
 	size := len(pubkeys)
 	newRing := make([]types.Point, size)
 	for i := 0; i < size; i++ {
-		newRing[i] = pubkeys[i]
+		newRing[i] = pubkeys[i].Copy()
 	}
 
 	return &Ring{
