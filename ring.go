@@ -59,6 +59,20 @@ func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privkey 
 	}, nil
 }
 
+// NewFixedKeyRingFromPublicKeys takes public keys and a curve to create a ring
+func NewFixedKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point) (*Ring, error) {
+	size := len(pubkeys)
+	newRing := make([]types.Point, size)
+	for i := 0; i < size; i++ {
+		newRing[i] = pubkeys[i]
+	}
+
+	return &Ring{
+		pubkeys: newRing,
+		curve:   curve,
+	}, nil
+}
+
 // NewKeyRing creates a ring with size specified by `size` and places the public key corresponding
 // to `privkey` in index idx of the ring.
 // It returns a ring of public keys of length `size`.
