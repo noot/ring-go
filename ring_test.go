@@ -96,6 +96,16 @@ func TestGenKeyRing(t *testing.T) {
 	require.NotNil(t, keyring)
 	require.Equal(t, size+1, keyring.Size())
 	require.True(t, keyring.pubkeys[s].Equals(curve.ScalarBaseMul(privkey)))
+
+	fixedkeys := make([]types.Point, size+1)
+	fixedkeys[0] = curve.ScalarBaseMul(privkey)
+	copy(fixedkeys[1:], pubkeys)
+	keyring, err = NewFixedKeyRingFromPublicKeys(curve, fixedkeys)
+	require.NoError(t, err)
+	require.NotNil(t, keyring)
+	for i := 0; i < size; i++ {
+		require.True(t, keyring.pubkeys[i].Equals(fixedkeys[i]))
+	}
 }
 
 func TestSign(t *testing.T) {
