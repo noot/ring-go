@@ -18,6 +18,24 @@ func (r *Ring) Size() int {
 	return len(r.pubkeys)
 }
 
+// Equals checks whether the supplied ring is equal to the current ring.
+func (ring *Ring) Equals(other *Ring) bool {
+	for i, p := range ring.pubkeys {
+		if eq := p.Equals(other.pubkeys[i]); !eq {
+			return false
+		}
+	}
+	bp, abp := ring.curve.BasePoint(), ring.curve.AltBasePoint()
+	obp, oabp := other.curve.BasePoint(), other.curve.AltBasePoint()
+	if eq := bp.Equals(obp); !eq {
+		return false
+	}
+	if eq := abp.Equals(oabp); !eq {
+		return false
+	}
+	return true
+}
+
 // RingSig represents a ring signature.
 type RingSig struct {
 	ring  *Ring          // array of public keys
@@ -33,6 +51,11 @@ func (r *RingSig) PublicKeys() []types.Point {
 		ret[i] = pk.Copy()
 	}
 	return ret
+}
+
+// Ring returns the ring from the RingSig struct
+func (r *RingSig) Ring() *Ring {
+	return r.ring
 }
 
 // NewKeyRingFromPublicKeys takes public key ring and places the public key corresponding to `privkey`

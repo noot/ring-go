@@ -108,6 +108,36 @@ func TestGenKeyRing(t *testing.T) {
 	}
 }
 
+func TestRing_Equals(t *testing.T) {
+	curve := Secp256k1()
+	privkey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privkey, 0)
+	require.NoError(t, err)
+	keyring2, err := NewKeyRing(curve, 10, privkey, 0)
+	require.NoError(t, err)
+	require.False(t, keyring.Equals(keyring2)) // NewKeyRing generates random pubkeys
+	keyring3, err := NewFixedKeyRingFromPublicKeys(curve, keyring.pubkeys)
+	require.NoError(t, err)
+	require.True(t, keyring.Equals(keyring3))
+}
+
+func TestSig_RingEquals(t *testing.T) {
+	curve := Secp256k1()
+	privkey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privkey, 0)
+	require.NoError(t, err)
+	keyring2, err := NewKeyRing(curve, 10, privkey, 0)
+	require.NoError(t, err)
+	sig, err := keyring.Sign(testMsg, privkey)
+	require.NoError(t, err)
+	sig2, err := keyring2.Sign(testMsg, privkey)
+	require.NoError(t, err)
+	require.False(t, sig.Ring().Equals(keyring2))
+	require.True(t, sig.Ring().Equals(keyring))
+	require.False(t, sig2.Ring().Equals(keyring))
+	require.True(t, sig2.Ring().Equals(keyring2))
+}
+
 func TestSign(t *testing.T) {
 	createSig(t, 9, 0)
 }
