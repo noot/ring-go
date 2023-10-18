@@ -19,21 +19,16 @@ func (r *Ring) Size() int {
 }
 
 // Equals checks whether the supplied ring is equal to the current ring.
+// The ring's public keys must be in the same order for the rings to be equal
 func (ring *Ring) Equals(other *Ring) bool {
 	for i, p := range ring.pubkeys {
-		if eq := p.Equals(other.pubkeys[i]); !eq {
+		if !p.Equals(other.pubkeys[i]) {
 			return false
 		}
 	}
 	bp, abp := ring.curve.BasePoint(), ring.curve.AltBasePoint()
 	obp, oabp := other.curve.BasePoint(), other.curve.AltBasePoint()
-	if eq := bp.Equals(obp); !eq {
-		return false
-	}
-	if eq := abp.Equals(oabp); !eq {
-		return false
-	}
-	return true
+	return bp.Equals(obp) && abp.Equals(oabp)
 }
 
 // RingSig represents a ring signature.
