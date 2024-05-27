@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	ring "github.com/noot/ring-go"
+	ring "github.com/pokt-network/ring-go"
 	"golang.org/x/crypto/sha3"
 )
 

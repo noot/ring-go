@@ -1,13 +1,17 @@
 # ring-go
+
 Implementation of linkable ring signatures using elliptic curve crypto in pure Go. It supports ring signatures over both ed25519 and secp256k1.
 
 ### requirements
+
 go 1.19
 
 ### get
-`go get github.com/noot/ring-go`
+
+`go get github.com/pokt-network/ring-go`
 
 ### references
+
 This implementation is based off of [Ring Confidential Transactions](https://eprint.iacr.org/2015/1098.pdf), in particular section 2, which defines MLSAG (Multilayered Linkable Spontaneous Anonymous Group signatures).
 
 ### usage
@@ -20,7 +24,7 @@ package main
 import (
 	"fmt"
 
-	ring "github.com/noot/ring-go"
+	ring "github.com/pokt-network/ring-go"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -33,7 +37,7 @@ func signAndVerify(curve ring.Curve) {
 
 	// our key's secret index within the set
 	const idx = 7
-	
+
 	keyring, err := ring.NewKeyRing(curve, size, privkey, idx)
 	if err != nil {
 		panic(err)

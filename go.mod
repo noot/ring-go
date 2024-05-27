@@ -1,4 +1,4 @@
-module github.com/noot/ring-go
+module github.com/pokt-network/ring-go
 
 go 1.19
 
