@@ -1,15 +1,15 @@
 package ring
 
 import (
+	"fmt"
+
 	"filippo.io/edwards25519"
 	"filippo.io/edwards25519/field"
-	"fmt"
-	dsecp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"golang.org/x/crypto/sha3"
-
 	"github.com/athanorlabs/go-dleq/ed25519"
 	"github.com/athanorlabs/go-dleq/secp256k1"
 	"github.com/athanorlabs/go-dleq/types"
+	dsecp256k1 "github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"golang.org/x/crypto/sha3"
 )
 
 func hashToCurve(pk types.Point) types.Point {

@@ -10,13 +10,13 @@ import (
 )
 
 func testSerializeAndDeserialize(t *testing.T, curve Curve, size, idx int) {
-	privkey := curve.NewRandomScalar()
+	privKey := curve.NewRandomScalar()
 	msgHash := sha3.Sum256([]byte("helloworld"))
 
-	keyring, err := NewKeyRing(curve, size, privkey, idx)
+	keyring, err := NewKeyRing(curve, size, privKey, idx)
 	require.NoError(t, err)
 
-	sig, err := Sign(msgHash, keyring, privkey, idx)
+	sig, err := Sign(msgHash, keyring, privKey, idx)
 	require.NoError(t, err)
 
 	byteSig, err := sig.Serialize()

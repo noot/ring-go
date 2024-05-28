@@ -1,6 +1,6 @@
 module github.com/pokt-network/ring-go
 
-go 1.19
+go 1.22.2
 
 require (
 	filippo.io/edwards25519 v1.0.0

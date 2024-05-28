@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 
-	ring "github.com/pokt-network/ring-go"
 	"golang.org/x/crypto/sha3"
+
+	ring "github.com/pokt-network/ring-go"
 )
 
 func signAndVerify(curve ring.Curve) {
-	privkey := curve.NewRandomScalar()
+	privKey := curve.NewRandomScalar()
 	msgHash := sha3.Sum256([]byte("helloworld"))
 
 	// size of the public key ring (anonymity set)
@@ -17,12 +18,12 @@ func signAndVerify(curve ring.Curve) {
 	// our key's secret index within the set
 	const idx = 7
 
-	keyring, err := ring.NewKeyRing(curve, size, privkey, idx)
+	keyring, err := ring.NewKeyRing(curve, size, privKey, idx)
 	if err != nil {
 		panic(err)
 	}
 
-	sig, err := keyring.Sign(msgHash, privkey)
+	sig, err := keyring.Sign(msgHash, privKey)
 	if err != nil {
 		panic(err)
 	}

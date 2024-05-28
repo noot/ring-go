@@ -16,14 +16,14 @@ var (
 
 func createSigWithCurve(t *testing.T, curve types.Curve, size, idx int) *RingSig {
 	// instantiate private key
-	privkey := curve.NewRandomScalar()
+	privKey := curve.NewRandomScalar()
 
 	// generate keyring
-	keyring, err := NewKeyRing(curve, size, privkey, idx)
+	keyring, err := NewKeyRing(curve, size, privKey, idx)
 	require.NoError(t, err)
 
 	// sign message
-	sig, err := keyring.Sign(testMsg, privkey)
+	sig, err := keyring.Sign(testMsg, privKey)
 	require.NoError(t, err)
 	return sig
 }
@@ -55,8 +55,8 @@ func TestSign_Loop_Secp256k1(t *testing.T) {
 
 func TestNewKeyRing(t *testing.T) {
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring, err := NewKeyRing(curve, 2, privkey, 0)
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 2, privKey, 0)
 	require.NoError(t, err)
 	require.NotNil(t, keyring)
 	require.Equal(t, 2, len(keyring.pubkeys))
@@ -64,8 +64,8 @@ func TestNewKeyRing(t *testing.T) {
 
 func TestNewKeyRing3(t *testing.T) {
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring, err := NewKeyRing(curve, 3, privkey, 1)
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 3, privKey, 1)
 	require.NoError(t, err)
 	require.NotNil(t, keyring)
 	require.Equal(t, 3, len(keyring.pubkeys))
@@ -73,14 +73,14 @@ func TestNewKeyRing3(t *testing.T) {
 
 func TestNewKeyRing_IdxOutOfBounds(t *testing.T) {
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	_, err := NewKeyRing(curve, 2, privkey, 3)
+	privKey := curve.NewRandomScalar()
+	_, err := NewKeyRing(curve, 2, privKey, 3)
 	require.Error(t, err)
 }
 
 func TestGenKeyRing(t *testing.T) {
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
+	privKey := curve.NewRandomScalar()
 	s := 0
 	size := 3
 
@@ -91,29 +91,29 @@ func TestGenKeyRing(t *testing.T) {
 		pubkeys[i] = curve.ScalarBaseMul(priv)
 	}
 
-	keyring, err := NewKeyRingFromPublicKeys(curve, pubkeys, privkey, s)
+	keyring, err := NewKeyRingFromPublicKeys(curve, pubkeys, privKey, s)
 	require.NoError(t, err)
 	require.NotNil(t, keyring)
 	require.Equal(t, size+1, keyring.Size())
-	require.True(t, keyring.pubkeys[s].Equals(curve.ScalarBaseMul(privkey)))
+	require.True(t, keyring.pubkeys[s].Equals(curve.ScalarBaseMul(privKey)))
 
-	fixedkeys := make([]types.Point, size+1)
-	fixedkeys[0] = curve.ScalarBaseMul(privkey)
-	copy(fixedkeys[1:], pubkeys)
-	keyring, err = NewFixedKeyRingFromPublicKeys(curve, fixedkeys)
+	fixedKeys := make([]types.Point, size+1)
+	fixedKeys[0] = curve.ScalarBaseMul(privKey)
+	copy(fixedKeys[1:], pubkeys)
+	keyring, err = NewFixedKeyRingFromPublicKeys(curve, fixedKeys)
 	require.NoError(t, err)
 	require.NotNil(t, keyring)
 	for i := 0; i < size; i++ {
-		require.True(t, keyring.pubkeys[i].Equals(fixedkeys[i]))
+		require.True(t, keyring.pubkeys[i].Equals(fixedKeys[i]))
 	}
 }
 
 func TestRing_Equals(t *testing.T) {
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring, err := NewKeyRing(curve, 10, privkey, 0)
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privKey, 0)
 	require.NoError(t, err)
-	keyring2, err := NewKeyRing(curve, 10, privkey, 0)
+	keyring2, err := NewKeyRing(curve, 10, privKey, 0)
 	require.NoError(t, err)
 	require.False(t, keyring.Equals(keyring2)) // NewKeyRing generates random pubkeys
 	keyring3, err := NewFixedKeyRingFromPublicKeys(curve, keyring.pubkeys)
@@ -123,14 +123,14 @@ func TestRing_Equals(t *testing.T) {
 
 func TestSig_RingEquals(t *testing.T) {
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring, err := NewKeyRing(curve, 10, privkey, 0)
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privKey, 0)
 	require.NoError(t, err)
-	keyring2, err := NewKeyRing(curve, 10, privkey, 0)
+	keyring2, err := NewKeyRing(curve, 10, privKey, 0)
 	require.NoError(t, err)
-	sig, err := keyring.Sign(testMsg, privkey)
+	sig, err := keyring.Sign(testMsg, privKey)
 	require.NoError(t, err)
-	sig2, err := keyring2.Sign(testMsg, privkey)
+	sig2, err := keyring2.Sign(testMsg, privKey)
 	require.NoError(t, err)
 	require.False(t, sig.Ring().Equals(keyring2))
 	require.True(t, sig.Ring().Equals(keyring))
@@ -168,47 +168,47 @@ func TestVerifyWrongMessage(t *testing.T) {
 
 func TestLinkabilityTrue(t *testing.T) {
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
+	privKey := curve.NewRandomScalar()
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
 
-	keyring1, err := NewKeyRing(curve, 2, privkey, 0)
+	keyring1, err := NewKeyRing(curve, 2, privKey, 0)
 	require.NoError(t, err)
 
-	sig1, err := keyring1.Sign(msgHash1, privkey)
+	sig1, err := keyring1.Sign(msgHash1, privKey)
 	require.NoError(t, err)
 
 	msg2 := "hello world"
 	msgHash2 := sha3.Sum256([]byte(msg2))
 
-	keyring2, err := NewKeyRing(curve, 2, privkey, 0)
+	keyring2, err := NewKeyRing(curve, 2, privKey, 0)
 	require.NoError(t, err)
 
-	sig2, err := keyring2.Sign(msgHash2, privkey)
+	sig2, err := keyring2.Sign(msgHash2, privKey)
 	require.NoError(t, err)
 	require.True(t, Link(sig1, sig2))
 }
 
 func TestLinkabilityFalse(t *testing.T) {
 	curve := Secp256k1()
-	privkey1 := curve.NewRandomScalar()
+	privKey1 := curve.NewRandomScalar()
 	msg1 := "helloworld"
 	msgHash1 := sha3.Sum256([]byte(msg1))
 
-	keyring1, err := NewKeyRing(curve, 2, privkey1, 0)
+	keyring1, err := NewKeyRing(curve, 2, privKey1, 0)
 	require.NoError(t, err)
 
-	sig1, err := keyring1.Sign(msgHash1, privkey1)
+	sig1, err := keyring1.Sign(msgHash1, privKey1)
 	require.NoError(t, err)
 
-	privkey2 := curve.NewRandomScalar()
+	privKey2 := curve.NewRandomScalar()
 	msg2 := "hello world"
 	msgHash2 := sha3.Sum256([]byte(msg2))
 
-	keyring2, err := NewKeyRing(curve, 2, privkey2, 0)
+	keyring2, err := NewKeyRing(curve, 2, privKey2, 0)
 	require.NoError(t, err)
 
-	sig2, err := keyring2.Sign(msgHash2, privkey2)
+	sig2, err := keyring2.Sign(msgHash2, privKey2)
 	require.NoError(t, err)
 	require.False(t, Link(sig1, sig2))
 }

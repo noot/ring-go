@@ -1,17 +1,22 @@
 # Benchmarks
 
-The current library benchmarks for signing and verification are located below. For ring signatures, the signing and verification time are linearly proportional to the number of members of the ring (or "anonymity set"), which is what's observed.
+The current library benchmarks for signing and verification are located below.
+For ring signatures, the signing and verification time are linearly proportional
+to the number of members of the ring (or "anonymity set"), which is what's observed.
 
-> Note: the number directly after `BenchmarkSign` or `BenchmarkVerify` in the test name is the ring size being benchmarked.
+> Note: the number directly after `BenchmarkSign` or `BenchmarkVerify` in the test
+> name is the ring size being benchmarked.
 
-> Note: the ns/op value on the right is the time it took for signing or verification (depending on the test). The middle value is the number of times the operation was executed by the Go benchmarker.
+> Note: the ns/op value on the right is the time it took for signing or verification
+> (depending on the test). The middle value is the number of times the operation
+> was executed by the Go benchmarker.
 
-Summary:
+**Summary:**
 
 - secp256k1 signing and verification is around 0.92ms per ring member
 - ed25519 signing and verification is around is around 0.42ms per ring member
 
-```
+```bash
 goos: linux
 goarch: amd64
 pkg: github.com/pokt-network/ring-go
