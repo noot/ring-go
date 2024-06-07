@@ -212,3 +212,15 @@ func TestLinkabilityFalse(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, Link(sig1, sig2))
 }
+
+func TestSign_OneKey_Fails(t *testing.T) {
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 1, privKey, 0)
+	require.NoError(t, err)
+	require.NotNil(t, keyring)
+	require.Equal(t, 1, len(keyring.pubkeys))
+	_, err = keyring.Sign(testMsg, privKey)
+	require.Error(t, err)
+	require.Equal(t, "size of ring less than two", err.Error())
+}
