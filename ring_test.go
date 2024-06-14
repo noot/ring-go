@@ -2,6 +2,7 @@ package ring
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"math/big"
 	"testing"
 
@@ -186,6 +187,40 @@ func TestLinkabilityTrue(t *testing.T) {
 
 	sig2, err := keyring2.Sign(msgHash2, privkey)
 	require.NoError(t, err)
+	require.True(t, Link(sig1, sig2))
+}
+
+func TestLinkabilityTrue_imageSmallSubgroup(t *testing.T) {
+	// test for the audit case where one image has a small subgroup
+	// point added to it in an attempt to break the linkability property.
+	// ensure that the two images can still be linked.
+
+	// point from https://monero.stackexchange.com/questions/8671/what-are-the-hex-representations-of-the-small-subgroup-curve-points-on-ed25519
+	subgroupPointBytes, err := hex.DecodeString("0100000000000000000000000000000000000000000000000000000000000000")
+	require.NoError(t, err)
+	subgroupPoint, err := Ed25519().DecodeToPoint(subgroupPointBytes)
+	require.NoError(t, err)
+
+	curve := Ed25519()
+	privkey := curve.NewRandomScalar()
+	msg1 := "helloworld"
+	msgHash1 := sha3.Sum256([]byte(msg1))
+
+	keyring1, err := NewKeyRing(curve, 2, privkey, 0)
+	require.NoError(t, err)
+
+	sig1, err := keyring1.Sign(msgHash1, privkey)
+	require.NoError(t, err)
+
+	msg2 := "hello world"
+	msgHash2 := sha3.Sum256([]byte(msg2))
+
+	keyring2, err := NewKeyRing(curve, 2, privkey, 0)
+	require.NoError(t, err)
+
+	sig2, err := keyring2.Sign(msgHash2, privkey)
+	require.NoError(t, err)
+	sig2.image = sig2.image.Add(subgroupPoint)
 	require.True(t, Link(sig1, sig2))
 }
 

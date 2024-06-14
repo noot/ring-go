@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/athanorlabs/go-dleq/ed25519"
 	"github.com/athanorlabs/go-dleq/types"
 )
 
@@ -20,13 +21,13 @@ func (r *Ring) Size() int {
 
 // Equals checks whether the supplied ring is equal to the current ring.
 // The ring's public keys must be in the same order for the rings to be equal
-func (ring *Ring) Equals(other *Ring) bool {
-	for i, p := range ring.pubkeys {
+func (r *Ring) Equals(other *Ring) bool {
+	for i, p := range r.pubkeys {
 		if !p.Equals(other.pubkeys[i]) {
 			return false
 		}
 	}
-	bp, abp := ring.curve.BasePoint(), ring.curve.AltBasePoint()
+	bp, abp := r.curve.BasePoint(), r.curve.AltBasePoint()
 	obp, oabp := other.curve.BasePoint(), other.curve.AltBasePoint()
 	return bp.Equals(obp) && abp.Equals(oabp)
 }
@@ -273,7 +274,15 @@ func (sig *RingSig) Verify(m [32]byte) bool {
 // Link returns true if the two signatures were created by the same signer,
 // false otherwise.
 func Link(sigA, sigB *RingSig) bool {
-	return sigA.image.Equals(sigB.image)
+	switch sigA.Ring().curve.(type) {
+	case *ed25519.CurveImpl:
+		cofactor := Ed25519().ScalarFromInt(8)
+		imageA := sigA.image.ScalarMul(cofactor)
+		imageB := sigB.image.ScalarMul(cofactor)
+		return imageA.Equals(imageB)
+	default:
+		return sigA.image.Equals(sigB.image)
+	}
 }
 
 func challenge(curve types.Curve, m [32]byte, l, r types.Point) types.Scalar {
