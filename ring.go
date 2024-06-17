@@ -67,9 +67,17 @@ func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privkey 
 	}
 
 	newRing[idx] = pubkey
+	pubkeysMap := make(map[types.Point]struct{})
+	pubkeysMap[pubkey] = struct{}{}
+
 	for i := 1; i < size; i++ {
 		idx := (i + idx) % size
 		newRing[idx] = pubkeys[i-1]
+		pubkeysMap[pubkeys[i-1]] = struct{}{}
+	}
+
+	if len(pubkeysMap) != len(newRing) {
+		return nil, errors.New("duplicate public keys in ring")
 	}
 
 	return &Ring{
@@ -80,10 +88,17 @@ func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privkey 
 
 // NewFixedKeyRingFromPublicKeys takes public keys and a curve to create a ring
 func NewFixedKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point) (*Ring, error) {
+	pubkeysMap := make(map[types.Point]struct{})
+
 	size := len(pubkeys)
 	newRing := make([]types.Point, size)
 	for i := 0; i < size; i++ {
+		pubkeysMap[pubkeys[i]] = struct{}{}
 		newRing[i] = pubkeys[i].Copy()
+	}
+
+	if len(pubkeysMap) != len(newRing) {
+		return nil, errors.New("duplicate public keys in ring")
 	}
 
 	return &Ring{
