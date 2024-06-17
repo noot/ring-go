@@ -70,10 +70,17 @@ func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privkey 
 	pubkeysMap := make(map[types.Point]struct{})
 	pubkeysMap[pubkey] = struct{}{}
 
-	for i := 1; i < size; i++ {
-		idx := (i + idx) % size
-		newRing[idx] = pubkeys[i-1]
-		pubkeysMap[pubkeys[i-1]] = struct{}{}
+	for i := 0; i < size; i++ {
+		if i == idx {
+			continue
+		}
+
+		if i < idx {
+			newRing[i] = pubkeys[i]
+		} else {
+			newRing[i] = pubkeys[i-1]
+		}
+		pubkeysMap[newRing[i]] = struct{}{}
 	}
 
 	if len(pubkeysMap) != len(newRing) {
@@ -119,10 +126,12 @@ func NewKeyRing(curve types.Curve, size int, privkey types.Scalar, idx int) (*Ri
 	pubkey := curve.ScalarBaseMul(privkey)
 	ring[idx] = pubkey
 
-	for i := 1; i < size; i++ {
-		idx := (i + idx) % size
+	for i := 0; i < size; i++ {
+		if i == idx {
+			continue
+		}
 		priv := curve.NewRandomScalar()
-		ring[idx] = curve.ScalarBaseMul(priv)
+		ring[i] = curve.ScalarBaseMul(priv)
 	}
 
 	return &Ring{
