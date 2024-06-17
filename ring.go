@@ -67,7 +67,16 @@ func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privkey 
 	pubkey := curve.ScalarBaseMul(privkey)
 
 	if idx > len(pubkeys) {
-		return nil, errors.New("index out of bounds")
+		return nil, errors.New("index out of bounds: idx > len(pubkeys)")
+	}
+
+	if idx < 0 {
+		return nil, errors.New("index out of bounds: idx < 0")
+	}
+
+	// ensure that privkey is nonzero
+	if privkey.IsZero() {
+		return nil, errors.New("private key is zero")
 	}
 
 	newRing[idx] = pubkey
@@ -126,6 +135,11 @@ func NewKeyRing(curve types.Curve, size int, privkey types.Scalar, idx int) (*Ri
 		return nil, errors.New("index out of bounds")
 	}
 
+	// ensure that privkey is nonzero
+	if privkey.IsZero() {
+		return nil, errors.New("private key is zero")
+	}
+
 	ring := make([]types.Point, size)
 	pubkey := curve.ScalarBaseMul(privkey)
 	ring[idx] = pubkey
@@ -173,6 +187,11 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 
 	if ourIdx >= size {
 		return nil, errors.New("secret index out of range of ring size")
+	}
+
+	// ensure that privkey is nonzero
+	if privkey.IsZero() {
+		return nil, errors.New("private key is zero")
 	}
 
 	// check that key at index s is indeed the signer
