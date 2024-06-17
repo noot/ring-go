@@ -22,6 +22,10 @@ func (r *Ring) Size() int {
 // Equals checks whether the supplied ring is equal to the current ring.
 // The ring's public keys must be in the same order for the rings to be equal
 func (r *Ring) Equals(other *Ring) bool {
+	if r.Size() != other.Size() {
+		return false
+	}
+
 	for i, p := range r.pubkeys {
 		if !p.Equals(other.pubkeys[i]) {
 			return false
