@@ -58,7 +58,7 @@ func BenchmarkSign16_Secp256k1(b *testing.B) {
 }
 
 func BenchmarkSign32_Secp256k1(b *testing.B) {
-	const size = 2
+	const size = 32
 	curve := Secp256k1()
 	privkey := curve.NewRandomScalar()
 	keyring := mustKeyRing(curve, privkey, size, idx)
