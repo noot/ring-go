@@ -8,17 +8,17 @@ import (
 
 const idx = 0
 
-func benchmarkSign(b *testing.B, curve types.Curve, keyring *Ring, privkey types.Scalar, size, idx int) {
+func benchmarkSign(b *testing.B, curve types.Curve, keyring *Ring, privKey types.Scalar, size, idx int) {
 	for i := 0; i < b.N; i++ {
-		_, err := keyring.Sign(testMsg, privkey)
+		_, err := keyring.Sign(testMsg, privKey)
 		if err != nil {
 			panic(err)
 		}
 	}
 }
 
-func mustKeyRing(curve types.Curve, privkey types.Scalar, size, idx int) *Ring {
-	keyring, err := NewKeyRing(curve, size, privkey, idx)
+func mustKeyRing(curve types.Curve, privKey types.Scalar, size, idx int) *Ring {
+	keyring, err := NewKeyRing(curve, size, privKey, idx)
 	if err != nil {
 		panic(err)
 	}
@@ -28,113 +28,113 @@ func mustKeyRing(curve types.Curve, privkey types.Scalar, size, idx int) *Ring {
 func BenchmarkSign2_Secp256k1(b *testing.B) {
 	const size = 2
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign4_Secp256k1(b *testing.B) {
 	const size = 4
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign8_Secp256k1(b *testing.B) {
 	const size = 8
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign16_Secp256k1(b *testing.B) {
 	const size = 16
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign32_Secp256k1(b *testing.B) {
 	const size = 32
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign64_Secp256k1(b *testing.B) {
 	const size = 64
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign128_Secp256k1(b *testing.B) {
 	const size = 128
 	curve := Secp256k1()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign2_Ed25519(b *testing.B) {
 	const size = 2
 	curve := Ed25519()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign4_Ed25519(b *testing.B) {
 	const size = 4
 	curve := Ed25519()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign8_Ed25519(b *testing.B) {
 	const size = 8
 	curve := Ed25519()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign16_Ed25519(b *testing.B) {
 	const size = 16
 	curve := Ed25519()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign32_Ed25519(b *testing.B) {
 	const size = 32
 	curve := Ed25519()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign64_Ed25519(b *testing.B) {
 	const size = 64
 	curve := Ed25519()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func BenchmarkSign128_Ed25519(b *testing.B) {
 	const size = 128
 	curve := Ed25519()
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
-	benchmarkSign(b, curve, keyring, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	benchmarkSign(b, curve, keyring, privKey, size, idx)
 }
 
 func benchmarkVerify(b *testing.B, sig *RingSig) {
@@ -147,10 +147,10 @@ func benchmarkVerify(b *testing.B, sig *RingSig) {
 }
 
 func mustSig(curve types.Curve, size int) *RingSig {
-	privkey := curve.NewRandomScalar()
-	keyring := mustKeyRing(curve, privkey, size, idx)
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
 
-	sig, err := keyring.Sign(testMsg, privkey)
+	sig, err := keyring.Sign(testMsg, privKey)
 	if err != nil {
 		panic(err)
 	}

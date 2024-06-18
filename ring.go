@@ -58,13 +58,13 @@ func (r *RingSig) Ring() *Ring {
 	return r.ring
 }
 
-// NewKeyRingFromPublicKeys takes public key ring and places the public key corresponding to `privkey`
+// NewKeyRingFromPublicKeys takes public key ring and places the public key corresponding to `privKey`
 // in index idx of the ring.
 // It returns a ring of public keys of length `len(ring)+1`.
-func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privkey types.Scalar, idx int) (*Ring, error) {
+func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privKey types.Scalar, idx int) (*Ring, error) {
 	size := len(pubkeys) + 1
 	newRing := make([]types.Point, size)
-	pubkey := curve.ScalarBaseMul(privkey)
+	pubkey := curve.ScalarBaseMul(privKey)
 
 	if idx > len(pubkeys) {
 		return nil, errors.New("index out of bounds: idx > len(pubkeys)")
@@ -128,9 +128,9 @@ func NewFixedKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point) (*R
 }
 
 // NewKeyRing creates a ring with size specified by `size` and places the public key corresponding
-// to `privkey` in index idx of the ring.
+// to `privKey` in index idx of the ring.
 // It returns a ring of public keys of length `size`.
-func NewKeyRing(curve types.Curve, size int, privkey types.Scalar, idx int) (*Ring, error) {
+func NewKeyRing(curve types.Curve, size int, privKey types.Scalar, idx int) (*Ring, error) {
 	if idx >= size {
 		return nil, errors.New("index out of bounds")
 	}
@@ -141,7 +141,7 @@ func NewKeyRing(curve types.Curve, size int, privkey types.Scalar, idx int) (*Ri
 	}
 
 	ring := make([]types.Point, size)
-	pubkey := curve.ScalarBaseMul(privkey)
+	pubkey := curve.ScalarBaseMul(privKey)
 	ring[idx] = pubkey
 
 	for i := 0; i < size; i++ {
@@ -160,9 +160,9 @@ func NewKeyRing(curve types.Curve, size int, privkey types.Scalar, idx int) (*Ri
 
 // Sign creates a ring signature on the given message using the public key ring
 // and a private key of one of the members of the ring.
-func (r *Ring) Sign(m [32]byte, privkey types.Scalar) (*RingSig, error) {
+func (r *Ring) Sign(m [32]byte, privKey types.Scalar) (*RingSig, error) {
 	ourIdx := -1
-	pubkey := r.curve.ScalarBaseMul(privkey)
+	pubkey := r.curve.ScalarBaseMul(privKey)
 	for i, pk := range r.pubkeys {
 		if pk.Equals(pubkey) {
 			ourIdx = i
@@ -174,12 +174,12 @@ func (r *Ring) Sign(m [32]byte, privkey types.Scalar) (*RingSig, error) {
 		return nil, errors.New("failed to find given key in public key set")
 	}
 
-	return Sign(m, r, privkey, ourIdx)
+	return Sign(m, r, privKey, ourIdx)
 }
 
 // Sign creates a ring signature on the given message using the provided private key
 // and ring of public keys.
-func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, error) {
+func Sign(m [32]byte, ring *Ring, privKey types.Scalar, ourIdx int) (*RingSig, error) {
 	size := len(ring.pubkeys)
 	if size < 2 {
 		return nil, errors.New("size of ring less than two")
@@ -195,7 +195,7 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 	}
 
 	// check that key at index s is indeed the signer
-	pubkey := ring.curve.ScalarBaseMul(privkey)
+	pubkey := ring.curve.ScalarBaseMul(privKey)
 	if !ring.pubkeys[ourIdx].Equals(pubkey) {
 		return nil, errors.New("secret index in ring is not signer")
 	}
@@ -206,7 +206,7 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 	sig := &RingSig{
 		ring: ring,
 		// calculate key image I = x * H_p(P) where H_p is a hash-to-curve function
-		image: curve.ScalarMul(privkey, h),
+		image: curve.ScalarMul(privKey, h),
 	}
 
 	// start at c[j]
@@ -250,7 +250,7 @@ func Sign(m [32]byte, ring *Ring, privkey types.Scalar, ourIdx int) (*RingSig, e
 	}
 
 	// close ring by finding s[j] = u - c[j]*x
-	cx := c[ourIdx].Mul(privkey)
+	cx := c[ourIdx].Mul(privKey)
 	s[ourIdx] = u.Sub(cx)
 
 	// check that u*G = s[j]*G + c[j]*P[j]
