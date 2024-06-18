@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/athanorlabs/go-dleq/ed25519"
 	"github.com/athanorlabs/go-dleq/types"
 )
 
@@ -20,13 +21,17 @@ func (r *Ring) Size() int {
 
 // Equals checks whether the supplied ring is equal to the current ring.
 // The ring's public keys must be in the same order for the rings to be equal
-func (ring *Ring) Equals(other *Ring) bool {
-	for i, p := range ring.pubkeys {
+func (r *Ring) Equals(other *Ring) bool {
+	if r.Size() != other.Size() {
+		return false
+	}
+
+	for i, p := range r.pubkeys {
 		if !p.Equals(other.pubkeys[i]) {
 			return false
 		}
 	}
-	bp, abp := ring.curve.BasePoint(), ring.curve.AltBasePoint()
+	bp, abp := r.curve.BasePoint(), r.curve.AltBasePoint()
 	obp, oabp := other.curve.BasePoint(), other.curve.AltBasePoint()
 	return bp.Equals(obp) && abp.Equals(oabp)
 }
@@ -62,13 +67,37 @@ func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privKey 
 	pubkey := curve.ScalarBaseMul(privKey)
 
 	if idx > len(pubkeys) {
-		return nil, errors.New("index out of bounds")
+		return nil, errors.New("index out of bounds: idx > len(pubkeys)")
+	}
+
+	if idx < 0 {
+		return nil, errors.New("index out of bounds: idx < 0")
+	}
+
+	// ensure that privkey is nonzero
+	if privkey.IsZero() {
+		return nil, errors.New("private key is zero")
 	}
 
 	newRing[idx] = pubkey
-	for i := 1; i < size; i++ {
-		idx := (i + idx) % size
-		newRing[idx] = pubkeys[i-1]
+	pubkeysMap := make(map[types.Point]struct{})
+	pubkeysMap[pubkey] = struct{}{}
+
+	for i := 0; i < size; i++ {
+		if i == idx {
+			continue
+		}
+
+		if i < idx {
+			newRing[i] = pubkeys[i]
+		} else {
+			newRing[i] = pubkeys[i-1]
+		}
+		pubkeysMap[newRing[i]] = struct{}{}
+	}
+
+	if len(pubkeysMap) != len(newRing) {
+		return nil, errors.New("duplicate public keys in ring")
 	}
 
 	return &Ring{
@@ -79,10 +108,17 @@ func NewKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point, privKey 
 
 // NewFixedKeyRingFromPublicKeys takes public keys and a curve to create a ring
 func NewFixedKeyRingFromPublicKeys(curve types.Curve, pubkeys []types.Point) (*Ring, error) {
+	pubkeysMap := make(map[types.Point]struct{})
+
 	size := len(pubkeys)
 	newRing := make([]types.Point, size)
 	for i := 0; i < size; i++ {
+		pubkeysMap[pubkeys[i]] = struct{}{}
 		newRing[i] = pubkeys[i].Copy()
+	}
+
+	if len(pubkeysMap) != len(newRing) {
+		return nil, errors.New("duplicate public keys in ring")
 	}
 
 	return &Ring{
@@ -99,14 +135,21 @@ func NewKeyRing(curve types.Curve, size int, privKey types.Scalar, idx int) (*Ri
 		return nil, errors.New("index out of bounds")
 	}
 
+	// ensure that privkey is nonzero
+	if privkey.IsZero() {
+		return nil, errors.New("private key is zero")
+	}
+
 	ring := make([]types.Point, size)
 	pubkey := curve.ScalarBaseMul(privKey)
 	ring[idx] = pubkey
 
-	for i := 1; i < size; i++ {
-		idx := (i + idx) % size
+	for i := 0; i < size; i++ {
+		if i == idx {
+			continue
+		}
 		priv := curve.NewRandomScalar()
-		ring[idx] = curve.ScalarBaseMul(priv)
+		ring[i] = curve.ScalarBaseMul(priv)
 	}
 
 	return &Ring{
@@ -144,6 +187,11 @@ func Sign(m [32]byte, ring *Ring, privKey types.Scalar, ourIdx int) (*RingSig, e
 
 	if ourIdx >= size {
 		return nil, errors.New("secret index out of range of ring size")
+	}
+
+	// ensure that privkey is nonzero
+	if privkey.IsZero() {
+		return nil, errors.New("private key is zero")
 	}
 
 	// check that key at index s is indeed the signer
@@ -273,7 +321,15 @@ func (sig *RingSig) Verify(m [32]byte) bool {
 // Link returns true if the two signatures were created by the same signer,
 // false otherwise.
 func Link(sigA, sigB *RingSig) bool {
-	return sigA.image.Equals(sigB.image)
+	switch sigA.Ring().curve.(type) {
+	case *ed25519.CurveImpl:
+		cofactor := Ed25519().ScalarFromInt(8)
+		imageA := sigA.image.ScalarMul(cofactor)
+		imageB := sigB.image.ScalarMul(cofactor)
+		return imageA.Equals(imageB)
+	default:
+		return sigA.image.Equals(sigB.image)
+	}
 }
 
 func challenge(curve types.Curve, m [32]byte, l, r types.Point) types.Scalar {

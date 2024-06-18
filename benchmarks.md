@@ -13,72 +13,44 @@ to the number of members of the ring (or "anonymity set"), which is what's obser
 
 **Summary:**
 
-- secp256k1 signing and verification is around 0.92ms per ring member
-- ed25519 signing and verification is around is around 0.42ms per ring member
+- secp256k1 signing and verification is around 0.41ms per ring member
+- ed25519 signing and verification is around is around 0.12ms per ring member
 
 ```bash
 goos: linux
 goarch: amd64
-pkg: github.com/pokt-network/ring-go
-cpu: Intel(R) Core(TM) i7-8650U CPU @ 1.90GHz
+pkg: github.com/noot/ring-go
+cpu: 12th Gen Intel(R) Core(TM) i7-1280P
 
-BenchmarkSign2_Secp256k1
-BenchmarkSign2_Secp256k1-8       	     439	   2720747 ns/op
-BenchmarkSign4_Secp256k1
-BenchmarkSign4_Secp256k1-8       	     265	   4592636 ns/op
-BenchmarkSign8_Secp256k1
-BenchmarkSign8_Secp256k1-8       	     144	   8119283 ns/op
-BenchmarkSign16_Secp256k1
-BenchmarkSign16_Secp256k1-8      	      70	  15489045 ns/op
-BenchmarkSign32_Secp256k1
-BenchmarkSign32_Secp256k1-8      	     442	   2655179 ns/op
-BenchmarkSign64_Secp256k1
-BenchmarkSign64_Secp256k1-8      	      18	  58920929 ns/op
-BenchmarkSign128_Secp256k1
-BenchmarkSign128_Secp256k1-8     	       9	 118205504 ns/op
+BenchmarkSign2_Secp256k1-20                 1075           1113687 ns/op
+BenchmarkSign4_Secp256k1-20                  651           1832647 ns/op
+BenchmarkSign8_Secp256k1-20                  334           3389785 ns/op
+BenchmarkSign16_Secp256k1-20                 184           6279636 ns/op
+BenchmarkSign32_Secp256k1-20                  86          12556732 ns/op
+BenchmarkSign64_Secp256k1-20                  44          24592647 ns/op
+BenchmarkSign128_Secp256k1-20                 21          47949180 ns/op
 
-BenchmarkSign2_Ed25519
-BenchmarkSign2_Ed25519-8         	     984	   1164415 ns/op
-BenchmarkSign4_Ed25519
-BenchmarkSign4_Ed25519-8         	     600	   1979553 ns/op
-BenchmarkSign8_Ed25519
-BenchmarkSign8_Ed25519-8         	     321	   3646679 ns/op
-BenchmarkSign16_Ed25519
-BenchmarkSign16_Ed25519-8        	     165	   7196753 ns/op
-BenchmarkSign32_Ed25519
-BenchmarkSign32_Ed25519-8        	      78	  13598390 ns/op
-BenchmarkSign64_Ed25519
-BenchmarkSign64_Ed25519-8        	      38	  26774796 ns/op
-BenchmarkSign128_Ed25519
-BenchmarkSign128_Ed25519-8       	      19	  53311008 ns/op
+BenchmarkSign2_Ed25519-20                   3184            338455 ns/op
+BenchmarkSign4_Ed25519-20                   2102            561543 ns/op
+BenchmarkSign8_Ed25519-20                   1141           1024334 ns/op
+BenchmarkSign16_Ed25519-20                   601           1959393 ns/op
+BenchmarkSign32_Ed25519-20                   312           3812862 ns/op
+BenchmarkSign64_Ed25519-20                   158           7554431 ns/op
+BenchmarkSign128_Ed25519-20                   72          15137610 ns/op
 
-BenchmarkVerify2_Secp256k1
-BenchmarkVerify2_Secp256k1-8     	     615	   1839778 ns/op
-BenchmarkVerify4_Secp256k1
-BenchmarkVerify4_Secp256k1-8     	     322	   3585093 ns/op
-BenchmarkVerify8_Secp256k1
-BenchmarkVerify8_Secp256k1-8     	     158	   7380894 ns/op
-BenchmarkVerify16_Secp256k1
-BenchmarkVerify16_Secp256k1-8    	      80	  14837867 ns/op
-BenchmarkVerify32_Secp256k1
-BenchmarkVerify32_Secp256k1-8    	      38	  29946344 ns/op
-BenchmarkVerify64_Secp256k1
-BenchmarkVerify64_Secp256k1-8    	      18	  62373088 ns/op
-BenchmarkVerify128_Secp256k1
-BenchmarkVerify128_Secp256k1-8   	       8	 131062030 ns/op
+BenchmarkVerify2_Secp256k1-20               1647            759506 ns/op
+BenchmarkVerify4_Secp256k1-20                788           1507848 ns/op
+BenchmarkVerify8_Secp256k1-20                391           3060683 ns/op
+BenchmarkVerify16_Secp256k1-20               193           6173042 ns/op
+BenchmarkVerify32_Secp256k1-20                93          12352394 ns/op
+BenchmarkVerify64_Secp256k1-20                45          25246452 ns/op
+BenchmarkVerify128_Secp256k1-20               21          51882164 ns/op
 
-BenchmarkVerify2_Ed25519
-BenchmarkVerify2_Ed25519-8       	    1414	    813219 ns/op
-BenchmarkVerify4_Ed25519
-BenchmarkVerify4_Ed25519-8       	     688	   1655943 ns/op
-BenchmarkVerify8_Ed25519
-BenchmarkVerify8_Ed25519-8       	     328	   3284147 ns/op
-BenchmarkVerify16_Ed25519
-BenchmarkVerify16_Ed25519-8      	     180	   6590478 ns/op
-BenchmarkVerify32_Ed25519
-BenchmarkVerify32_Ed25519-8      	      87	  13433058 ns/op
-BenchmarkVerify64_Ed25519
-BenchmarkVerify64_Ed25519-8      	      40	  27083394 ns/op
-BenchmarkVerify128_Ed25519
-BenchmarkVerify128_Ed25519-8     	      19	  55970502 ns/op
+BenchmarkVerify2_Ed25519-20                 4797            238406 ns/op
+BenchmarkVerify4_Ed25519-20                 2349            457389 ns/op
+BenchmarkVerify8_Ed25519-20                 1244            932592 ns/op
+BenchmarkVerify16_Ed25519-20                 636           1823156 ns/op
+BenchmarkVerify32_Ed25519-20                 320           3781398 ns/op
+BenchmarkVerify64_Ed25519-20                 156           7524581 ns/op
+BenchmarkVerify128_Ed25519-20                 78          14955353 ns/op
 ```
