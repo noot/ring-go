@@ -200,13 +200,42 @@ func Sign(m [32]byte, ring *Ring, privKey types.Scalar, ourIdx int) (*RingSig, e
 		return nil, errors.New("secret index in ring is not signer")
 	}
 
+	// compute the remaining per-signer values and delegate to the shared core.
+	// Plain Sign uses no precomputed member hashes and keeps the self-checks on,
+	// so its work profile is identical to the un-optimized implementation. This
+	// is the consensus-safe path; off-chain callers wanting the precompute/cache
+	// use SignerContext + SignWithContext instead.
+	h := hashToCurve(pubkey)
+	image := ring.curve.ScalarMul(privKey, h)
+	return signInternal(m, ring, privKey, ourIdx, pubkey, h, image, nil, false)
+}
+
+// signInternal is the core ring-signing routine. It accepts the signer's
+// pre-computed public key P[j], hash-to-curve point h = H_p(P[j]), and key
+// image I = x*h so a SignerContext can skip re-deriving them each signature.
+//
+// memberHashes, if non-nil, supplies H_p(P[i]) for every ring member so they
+// need not be recomputed; when nil each member's hash-to-curve is computed
+// inline (the consensus-safe default, no shared cache / no state). skipCheck
+// omits the closing self-checks (off-chain opt-in only).
+//
+// The caller is responsible for validating that pubkey corresponds to privKey
+// at ourIdx; the size and index guards below are kept as cheap safety nets.
+func signInternal(m [32]byte, ring *Ring, privKey types.Scalar, ourIdx int, pubkey, h, image types.Point, memberHashes []types.Point, skipCheck bool) (*RingSig, error) {
+	size := len(ring.pubkeys)
+	if size < 2 {
+		return nil, errors.New("size of ring less than two")
+	}
+	if ourIdx >= size {
+		return nil, errors.New("secret index out of range of ring size")
+	}
+
 	// setup
 	curve := ring.curve
-	h := hashToCurve(pubkey)
 	sig := &RingSig{
 		ring: ring,
-		// calculate key image I = x * H_p(P) where H_p is a hash-to-curve function
-		image: curve.ScalarMul(privKey, h),
+		// key image I = x * H_p(P) where H_p is a hash-to-curve function
+		image: image,
 	}
 
 	// start at c[j]
@@ -241,7 +270,12 @@ func Sign(m [32]byte, ring *Ring, privKey types.Scalar, ourIdx int) (*RingSig, e
 
 		// calculate R_i = s_i*H_p(P_i) + c_i*I
 		cI := curve.ScalarMul(c[idx], sig.image)
-		hp := hashToCurve(ring.pubkeys[idx])
+		var hp types.Point
+		if memberHashes != nil {
+			hp = memberHashes[idx] // precomputed by SignerContext (off-chain)
+		} else {
+			hp = hashToCurve(ring.pubkeys[idx]) // consensus-safe default: inline
+		}
 		sH := curve.ScalarMul(s[idx], hp)
 		r := cI.Add(sH)
 
@@ -253,34 +287,109 @@ func Sign(m [32]byte, ring *Ring, privKey types.Scalar, ourIdx int) (*RingSig, e
 	cx := c[ourIdx].Mul(privKey)
 	s[ourIdx] = u.Sub(cx)
 
-	// check that u*G = s[j]*G + c[j]*P[j]
-	cP := curve.ScalarMul(c[ourIdx], pubkey)
-	sG := curve.ScalarBaseMul(s[ourIdx])
-	lNew := cP.Add(sG)
-	if !lNew.Equals(l) {
-		// this should not happen
-		return nil, errors.New("failed to close ring: uG != sG + cP")
-	}
-
-	// check that u*H_p(P[j]) = s[j]*H_p(P[j]) + c[j]*I
-	cI := curve.ScalarMul(c[ourIdx], sig.image)
-	sH := curve.ScalarMul(s[ourIdx], h)
-	rNew := cI.Add(sH)
-	if !rNew.Equals(r) {
-		// this should not happen
-		return nil, errors.New("failed to close ring: uH(P) != sH(P) + cI")
-	}
-
-	// check that H(m, L[j], R[j]) == c[j+1]
-	cCheck := challenge(ring.curve, m, l, r)
-	if !cCheck.Eq(c[(ourIdx+1)%size]) {
-		return nil, errors.New("challenge check failed")
+	// Self-check that the ring closes correctly. These re-derivations are an
+	// algebraic identity given correct arithmetic, so they only guard against a
+	// buggy curve backend, at a cost of ~4 scalar multiplications per signature.
+	// Always run on the plain Sign path; skippable only via SignerContext for
+	// off-chain callers that accept the trade-off.
+	if !skipCheck {
+		if err := verifyRingCloses(curve, m, l, r, pubkey, sig.image, h,
+			c[ourIdx], c[(ourIdx+1)%size], s[ourIdx]); err != nil {
+			return nil, err
+		}
 	}
 
 	// everything ok, add values to signature
 	sig.s = s
 	sig.c = c[0]
 	return sig, nil
+}
+
+// SignerContext holds values that are constant across messages for a given
+// (private key, ring): the signer's public key, hash-to-curve point, key image,
+// index, and the hash-to-curve of every ring member. Pre-computing them once
+// lets repeated signing skip all per-signer and per-member setup.
+//
+//	ctx, err := ring.NewSignerContext(privKey)
+//	sig1, _ := ring.SignWithContext(msg1, privKey, ctx)
+//	sig2, _ := ring.SignWithContext(msg2, privKey, ctx) // reuses ctx precompute
+//
+// A SignerContext holds NO secret material: every field is derived from public
+// data (the key image and public key are already published in signatures). The
+// private key is not retained — it is supplied per call to SignWithContext,
+// exactly as with Sign — so a context is safe to hold, reuse, and pass around.
+// It is tied to the ring it was created from; do not use it with a different
+// ring or a different private key than the one it was built for.
+//
+// IMPORTANT: this is an OFF-CHAIN optimization. The precomputed member hashes
+// mean SignWithContext performs less work than Sign for the same signature, so
+// its cost is not identical to the plain path. Do NOT use SignerContext on
+// consensus-critical / gas-metered paths where the amount of work performed
+// must be deterministic across nodes — use Sign there.
+type SignerContext struct {
+	pubkey       types.Point   // P = x*G (public)
+	h            types.Point   // H_p(P) == memberHashes[idx] (public)
+	image        types.Point   // key image I = x*H_p(P) (public; published in signatures)
+	idx          int           // signer's index in the ring
+	memberHashes []types.Point // H_p(P[i]) for every ring member (public)
+
+	// SkipSelfCheck, when true, omits the ~4-scalar-mul closing self-checks in
+	// SignWithContext. Off-chain speed opt-in only; the signature is still fully
+	// verifiable via RingSig.Verify. Leave false unless you trust the backend
+	// and have measured the win. NOTE: the self-checks are also what catch a
+	// privKey that does not match this context; with them skipped, a mismatched
+	// key silently produces an invalid (not forged) signature.
+	SkipSelfCheck bool
+}
+
+// NewSignerContext pre-computes, for privKey (which must correspond to one of
+// the ring's public keys), the signer's public key, key image, index, and the
+// hash-to-curve of every ring member. The private key is used only to derive
+// these public values and is NOT stored on the returned context. All state
+// lives on the context; the shared Ring is not mutated.
+func (r *Ring) NewSignerContext(privKey types.Scalar) (*SignerContext, error) {
+	if privKey.IsZero() {
+		return nil, errors.New("private key is zero")
+	}
+
+	pubkey := r.curve.ScalarBaseMul(privKey)
+
+	idx := -1
+	for i, pk := range r.pubkeys {
+		if pk.Equals(pubkey) {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
+		return nil, errors.New("private key does not correspond to any public key in the ring")
+	}
+
+	// Pre-compute H_p(P[i]) for every member; the signer's own h is memberHashes[idx].
+	memberHashes := make([]types.Point, len(r.pubkeys))
+	for i, pk := range r.pubkeys {
+		memberHashes[i] = hashToCurve(pk)
+	}
+	h := memberHashes[idx]
+	image := r.curve.ScalarMul(privKey, h)
+
+	return &SignerContext{
+		pubkey:       pubkey,
+		h:            h,
+		image:        image,
+		idx:          idx,
+		memberHashes: memberHashes,
+	}, nil
+}
+
+// SignWithContext creates a ring signature using the values pre-computed in ctx,
+// avoiding the per-signer and per-member setup that Sign repeats each call. The
+// private key is supplied here (not stored on the context) and must be the same
+// key the context was built for; otherwise the resulting signature is invalid
+// (and rejected by the closing self-check unless ctx.SkipSelfCheck is set). It
+// is an off-chain optimization; see SignerContext for the determinism caveat.
+func (r *Ring) SignWithContext(m [32]byte, privKey types.Scalar, ctx *SignerContext) (*RingSig, error) {
+	return signInternal(m, r, privKey, ctx.idx, ctx.pubkey, ctx.h, ctx.image, ctx.memberHashes, ctx.SkipSelfCheck)
 }
 
 // Verify verifies the ring signature for the given message.
@@ -333,11 +442,60 @@ func Link(sigA, sigB *RingSig) bool {
 }
 
 func challenge(curve types.Curve, m [32]byte, l, r types.Point) types.Scalar {
-	t := append(m[:], append(l.Encode(), r.Encode()...)...)
+	le, re := l.Encode(), r.Encode()
+	t := make([]byte, 0, len(m)+len(le)+len(re))
+	t = append(t, m[:]...)
+	t = append(t, le...)
+	t = append(t, re...)
 	c, err := curve.HashToScalar(t)
 	if err != nil {
 		// this should not happen
 		panic(err)
 	}
 	return c
+}
+
+// verifyRingCloses re-derives the signer's L[j] and R[j] from the closing
+// scalar s[j] and checks they match the values (l = u*G, r = u*H_p(P[j]))
+// chosen at the start of signing, then checks the challenge chain wraps around.
+//
+// Given correct curve arithmetic these equalities hold by construction
+// (s[j] = u - c[j]*x), so they are a defense-in-depth guard against a buggy
+// curve backend producing a malformed signature, not a security requirement.
+// They cost ~4 scalar multiplications per Sign and run on every plain Sign;
+// SignWithContext can skip them via SignerContext.SkipSelfCheck.
+//
+//	l, r:   u*G and u*H_p(P[j]) from the start of signing
+//	pubkey: signer's public key P[j]
+//	image:  key image I
+//	h:      H_p(P[j])
+//	cJ:     c[j]
+//	cNext:  c[j+1]
+//	sJ:     closing scalar s[j]
+func verifyRingCloses(
+	curve types.Curve,
+	m [32]byte,
+	l, r, pubkey, image, h types.Point,
+	cJ, cNext, sJ types.Scalar,
+) error {
+	// check that u*G = s[j]*G + c[j]*P[j]
+	cP := curve.ScalarMul(cJ, pubkey)
+	sG := curve.ScalarBaseMul(sJ)
+	if !cP.Add(sG).Equals(l) {
+		return errors.New("failed to close ring: uG != sG + cP")
+	}
+
+	// check that u*H_p(P[j]) = s[j]*H_p(P[j]) + c[j]*I
+	cI := curve.ScalarMul(cJ, image)
+	sH := curve.ScalarMul(sJ, h)
+	if !cI.Add(sH).Equals(r) {
+		return errors.New("failed to close ring: uH(P) != sH(P) + cI")
+	}
+
+	// check that H(m, L[j], R[j]) == c[j+1]
+	if !challenge(curve, m, l, r).Eq(cNext) {
+		return errors.New("challenge check failed")
+	}
+
+	return nil
 }

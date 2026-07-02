@@ -259,3 +259,131 @@ func TestSign_OneKey_Fails(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, "size of ring less than two", err.Error())
 }
+
+// TestSignWithContext tests that SignWithContext produces valid signatures
+func TestSignWithContext_Secp256k1(t *testing.T) {
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privKey, 3)
+	require.NoError(t, err)
+
+	ctx, err := keyring.NewSignerContext(privKey)
+	require.NoError(t, err)
+	require.NotNil(t, ctx)
+
+	// Sign multiple messages with the same context
+	for i := 0; i < 5; i++ {
+		msg := sha3.Sum256([]byte("message" + string(rune(i))))
+		sig, err := keyring.SignWithContext(msg, privKey, ctx)
+		require.NoError(t, err)
+		require.True(t, sig.Verify(msg))
+	}
+}
+
+func TestSignWithContext_Ed25519(t *testing.T) {
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privKey, 3)
+	require.NoError(t, err)
+
+	ctx, err := keyring.NewSignerContext(privKey)
+	require.NoError(t, err)
+	require.NotNil(t, ctx)
+
+	for i := 0; i < 5; i++ {
+		msg := sha3.Sum256([]byte("message" + string(rune(i))))
+		sig, err := keyring.SignWithContext(msg, privKey, ctx)
+		require.NoError(t, err)
+		require.True(t, sig.Verify(msg))
+	}
+}
+
+func TestSignWithContext_InvalidPrivKey(t *testing.T) {
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	wrongPrivKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privKey, 3)
+	require.NoError(t, err)
+
+	_, err = keyring.NewSignerContext(wrongPrivKey)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "does not correspond to any public key")
+}
+
+func TestSignWithContext_ZeroPrivKey(t *testing.T) {
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privKey, 3)
+	require.NoError(t, err)
+
+	zeroKey := curve.ScalarFromBytes([32]byte{})
+	_, err = keyring.NewSignerContext(zeroKey)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "private key is zero")
+}
+
+func TestSignWithContext_Linkability(t *testing.T) {
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+
+	keyring1, err := NewKeyRing(curve, 5, privKey, 2)
+	require.NoError(t, err)
+	keyring2, err := NewKeyRing(curve, 5, privKey, 2)
+	require.NoError(t, err)
+
+	ctx1, err := keyring1.NewSignerContext(privKey)
+	require.NoError(t, err)
+	ctx2, err := keyring2.NewSignerContext(privKey)
+	require.NoError(t, err)
+
+	msg1 := sha3.Sum256([]byte("message1"))
+	msg2 := sha3.Sum256([]byte("message2"))
+
+	sig1, err := keyring1.SignWithContext(msg1, privKey, ctx1)
+	require.NoError(t, err)
+	sig2, err := keyring2.SignWithContext(msg2, privKey, ctx2)
+	require.NoError(t, err)
+
+	// Same private key should produce linkable signatures
+	require.True(t, Link(sig1, sig2))
+}
+
+func TestSignWithContext_MatchesSign(t *testing.T) {
+	// SignWithContext and Sign use different randomness, so signatures differ,
+	// but both must verify and share the same key image (linkable).
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 10, privKey, 5)
+	require.NoError(t, err)
+
+	ctx, err := keyring.NewSignerContext(privKey)
+	require.NoError(t, err)
+
+	sig1, err := keyring.Sign(testMsg, privKey)
+	require.NoError(t, err)
+
+	sig2, err := keyring.SignWithContext(testMsg, privKey, ctx)
+	require.NoError(t, err)
+
+	require.True(t, sig1.Verify(testMsg))
+	require.True(t, sig2.Verify(testMsg))
+	require.True(t, Link(sig1, sig2))
+}
+
+// TestSignWithContext_KeyMismatchRejected checks that a context is not a way to
+// sign with the wrong key: because the context holds no secret and the key is
+// passed per call, a mismatched key is caught by the closing self-check.
+func TestSignWithContext_KeyMismatchRejected(t *testing.T) {
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring, err := NewKeyRing(curve, 5, privKey, 2)
+	require.NoError(t, err)
+
+	ctx, err := keyring.NewSignerContext(privKey)
+	require.NoError(t, err)
+
+	// Sign with a key that does not match the context; self-check must reject it.
+	wrongKey := curve.NewRandomScalar()
+	_, err = keyring.SignWithContext(testMsg, wrongKey, ctx)
+	require.Error(t, err)
+}

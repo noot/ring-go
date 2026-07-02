@@ -255,3 +255,148 @@ func BenchmarkVerify128_Ed25519(b *testing.B) {
 	sig := mustSig(curve, size)
 	benchmarkVerify(b, sig)
 }
+
+// SignWithContext benchmarks - measure performance with pre-computed values
+
+func benchmarkSignWithContext(b *testing.B, curve types.Curve, keyring *Ring, privKey types.Scalar, ctx *SignerContext) {
+	for i := 0; i < b.N; i++ {
+		_, err := keyring.SignWithContext(testMsg, privKey, ctx)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func mustSignerContext(keyring *Ring, privKey types.Scalar) *SignerContext {
+	ctx, err := keyring.NewSignerContext(privKey)
+	if err != nil {
+		panic(err)
+	}
+	return ctx
+}
+
+func BenchmarkSignWithContext2_Secp256k1(b *testing.B) {
+	const size = 2
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext4_Secp256k1(b *testing.B) {
+	const size = 4
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext8_Secp256k1(b *testing.B) {
+	const size = 8
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext16_Secp256k1(b *testing.B) {
+	const size = 16
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext32_Secp256k1(b *testing.B) {
+	const size = 32
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext64_Secp256k1(b *testing.B) {
+	const size = 64
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext128_Secp256k1(b *testing.B) {
+	const size = 128
+	curve := Secp256k1()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext2_Ed25519(b *testing.B) {
+	const size = 2
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext4_Ed25519(b *testing.B) {
+	const size = 4
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext8_Ed25519(b *testing.B) {
+	const size = 8
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext16_Ed25519(b *testing.B) {
+	const size = 16
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext32_Ed25519(b *testing.B) {
+	const size = 32
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext64_Ed25519(b *testing.B) {
+	const size = 64
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
+
+func BenchmarkSignWithContext128_Ed25519(b *testing.B) {
+	const size = 128
+	curve := Ed25519()
+	privKey := curve.NewRandomScalar()
+	keyring := mustKeyRing(curve, privKey, size, idx)
+	ctx := mustSignerContext(keyring, privKey)
+	benchmarkSignWithContext(b, curve, keyring, privKey, ctx)
+}
