@@ -5,3 +5,6 @@ mem.prof
 ring-go.test
 
 .DS_Store
+
+# IDE
+.idea/
